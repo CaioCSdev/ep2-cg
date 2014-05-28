@@ -22,10 +22,10 @@
                     
 
 //                    vec4 col = vec4(193.0/256.0, 165.0/256.0, 119.0/256.0, 1.0);
-                    vec4 col = vec4(0.7, 0.8, 0.8, 1.0);
-                    float c = (vPosition[0] + vPosition[1] + vPosition[2]) / 3.0;
-                    color = col + 1.5 * c;
-
+//                    vec4 col = vec4(0.7, 0.8, 0.8, 1.0);
+//                    float c = (vPosition[0] + vPosition[1] + vPosition[2]) / 3.0;
+//                    color = col + 1.5 * c;
+                    color = vPosition;
 
                     gl_Position = matrix * vPosition;
                 }

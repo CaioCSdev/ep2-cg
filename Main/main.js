@@ -28,7 +28,10 @@ var points = [];
 var colors = [];
 
 var objects = [];
+var balls = [];
 
+var index = 0;
+var stringNames = [];
 var objStrings = [];
 var verticesStart = 0;
 var previousPointsSize = 0;
@@ -71,8 +74,8 @@ window.onload = function init()
     oldWidth = screenWidth;
     oldHeight = screenHeight;
     
-    
-    readObj('sphere.obj');
+    stringNames = ['sphere.obj', 'mesa01.obj'];
+    readObj(stringNames[0]);
 }
 
 /* LEITURA DE ARQUIVOS */
@@ -87,9 +90,9 @@ var readObjCallback = function(obj) {
     // Coloca o novo objeto no vetor
     objStrings.push(obj);
     // Se ainda não acabou, lê o próximo
-    if (objStrings.length < 1) {
-        readObj(objNames[i]);
-        i++;
+    if (objStrings.length < stringNames.length) {
+        index++;
+        readObj(stringNames[index]);
     }
     // Se já acabou, pode fazer o resto
     else
@@ -107,14 +110,15 @@ function finishInit() {
     document.onkeydown = handleKeyDown;
     document.onkeyup = handleKeyUp;
     
-    
-    
     readVertices(objStrings[0]);
     var ballVertexRange = readFaces(objStrings[0]);
     var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1);
+    balls.push(ball);
     
-    objects.push(ball);
-    
+    readVertices(objStrings[1]);
+    var tableVertexRange = readFaces(objStrings[1]);
+    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1, 90, 90, 0);
+    objects.push(table);
     
     
     var hitbox = [vec4(-1.0, -0.5, -1.0, 1.0),      // Retângulo
@@ -204,8 +208,6 @@ function finishInit() {
     // Inicializa a matriz de projeção
     updatePerspective();
     
-    
-    objects[0].updateModelViewMatrix();
     
     render();
 };
@@ -328,15 +330,18 @@ function readFaces(string) {
         number[2] = parseInt(string.substr(i, j-1)) - 1;
         for (i = j; string.charAt(i) != '\n'; i++);
         i++;
+    
         
         // Adiciona os vértices, em ordem, ao vetor de "pontos"
-        for (var k = 0; k < 3; k++)
+        for (var k = 0; k < 3; k++) {
             points.push(vertices[verticesStart + number[k]]);
+        }
+        
         
         // Adiciona as cores ao vetor de cores
         for (var k = 0; k < 3; k++) {
-            var c = vertices[verticesStart + number[k]][1];
-            var col = vec4(c, c, c, 1.0);
+            var c = vertices[verticesStart + number[k]];
+            var col = vec4(c[0], c[1], c[2], 1.0);
             colors.push(col);
         }
         
@@ -350,7 +355,7 @@ function readFaces(string) {
     
     verticesStart = vertices.length;
     
-    return vec2(vertexStart, vertexEnd);
+    return vec2(vertexStart, vertexEnd - vertexStart);
 }
 
 
@@ -546,7 +551,7 @@ function applyForces () {
             
             var sizeV1 = normS(this.velocity)*normS(limit)/normS(proj);
             sizeV1 = Math.sqrt(sizeV1);
-            v1 = mult(0.99 * sizeV1, v1);
+            v1 = mult(0.9999 * sizeV1, v1);
             
             
             
@@ -566,10 +571,12 @@ function applyForces () {
             reflection = mult(norm(this.velocity), reflection);
             var refProj = projection(reflection, normalVector);
             
-            if (normS(this.velocity) <= 0.00001) {
-                energyCoefficient = 0.0015;
-                refProj = normalizev(refProj);
-            }
+//            if (normS(this.velocity) <= 0.00001) {
+//                energyCoefficient = 0.0015;
+//                refProj = normalizev(refProj);
+//            }
+            
+            // nharnharnharnharnharnharnharnharnharnharnharnharnharnharnharnharnahrnhar
             
             reflection = plus(reflection, mult(energyCoefficient, refProj));
             
@@ -593,61 +600,69 @@ function applyForces () {
 function limitForMovement(ball) {
     var limit;
     
+//    console.log("------------- Limit --------------");
+    
+    var ballSize = 0.01;
+    
     var normSVelocity = normS(ball.velocity);
     
+    if (normS(ball.velocity) <= 0.00001) {
+//        console.log("==========================\nStopped!!\n==========================");
+    }
     
-    // Vetor que vai guardar apenas os obstáculos próximos
-    var possibles = [];
     
     // Variável que guarda as informações da hitbox mais próxima
     var result = null;
     
     
-    // Acha os obstáculos próximos
-    for (var i = 0; i < hitboxes.length; i++) {
-        
-        var hitbox = hitboxes[i];
-        var hitboxNormal = hitbox[4];
-        
-        // Pega a posição relativa da bola
-        var ballToHitbox = minus(ball.position, hitbox[0]);
-        // E a distância da bola ao obstáculo
-        var distance = projection(ballToHitbox, hitboxNormal);
-        
-        // Se vamos andar mais do que a distância permitida
-        if (normS(distance) < normSVelocity && normS(distance) > 0) {
-            // Coloca este obstáculo no vetor
-            possibles.push(i);
-        }
-    }
     
     
     
     // Depois da filtração inicial, vamos ver se a bola vai atravessar uma hitbox ou não
-    for (var i = 0; i < possibles.length; i++) {
+    for (var i = 0; i < hitboxes.length; i++) {
         // Peha as informações da hitbox atual
-        var hitbox = hitboxes[possibles[i]];
+        var hitbox = hitboxes[i];
         var hitboxRectangle = [hitbox[0], hitbox[1], hitbox[2], hitbox[3]];
         var hitboxNormal = hitbox[4];
         var hitboxEnergy = hitbox[5];
         
-        
-        // Pega um vetor que levaria a bola à hitbox
-        var ballToHitbox = minus(ball.position, hitboxRectangle[0]);
 
+        
+        // Acha o ponto da bola mais próximo à hitbox
+        var ballClosestPosition = plus(ball.position, mult(-ballSize, hitboxNormal));
+        
+        // Usa isso para achar a "distância" da superfície da bola até a hitbox
+        // (precisamos só da direção dela relativa à normal da hitbox)
+        var ballToHitbox = minus(ballClosestPosition, hitboxRectangle[0]);
+        
+//        console.log("Ta do lado certo?");
+//        console.log("ballToHitbox dot hitboxNormal > 0? ", ballToHitbox, hitboxNormal, vdot(ballToHitbox, hitboxNormal));
+        
         // Se estamos do lado certo da hitbox
         if (vdot(ballToHitbox, hitboxNormal) > 0) {
+            
+//            console.log("Yes!");
+            // Achamos a distância real
+            ballToHitbox = projection(ballToHitbox, mult(-1, hitboxNormal));
+            
             // O quanto a bola passaria da hitbox (se atravessasse):
-            var movementRemainder = plus(ball.position    , ball.velocity);
+            // Acha onde a bola pararia
+            var movementRemainder = plus(ballClosestPosition    , ball.velocity);
+            // Faz esse ponto menos um ponto qualquer da hitbox, de novo só pela direção
             movementRemainder =    minus(movementRemainder, hitboxRectangle[0]);
+            
+//            console.log("Vai passar?");
+//        console.log("movementRemainder dot hitboxNormal < 0? ", movementRemainder, hitboxNormal, vdot(movementRemainder, hitboxNormal));
+            
             
             
             // Se vamos passar do plano que contém a hitbox
             if (vdot(movementRemainder, hitboxNormal) < 0) {
+//                console.log("Yes!");
                 
-                // Projeta os dois vetores na direção normal ao plano
-                var ballToHitbox =      projection(ballToHitbox     , hitboxNormal);
-                var movementRemainder = projection(movementRemainder, hitboxNormal);
+                // Novamente, acha a distância real
+                movementRemainder = projection(movementRemainder, hitboxNormal);
+                
                 
                 // Pega o tamanho de cada um
                 var toHitboxNormal = norm(ballToHitbox);
@@ -658,13 +673,13 @@ function limitForMovement(ball) {
                 var ratio = toHitboxNormal/(toHitboxNormal+remainderNormal);
                 
                 // A partir disso, semelhança de triângulos nos dá o ponto de intersecção do plano,
-                // com possíveis erros desprezíveis de float.
+                // com possíveis erros de float.
                 var intersectionPoint = plus(ball.position, mult(ratio, ball.velocity));
                 
                 // Pega um vetor que leva de algum canto da hitbox ao ponto de intersecção
                 var intersection = minus(intersectionPoint, hitboxRectangle[0]);
                 
-                
+//                console.log("Estamos dentro do retangulo?");
                 // Pega o primeiro lado do retângulo
                 var d1 = minus(hitboxRectangle[1], hitboxRectangle[0]);
                 // O vetor de intersecção tem que fazer no máximo 90 graus com o 1o lado
@@ -683,33 +698,33 @@ function limitForMovement(ball) {
                             if (vdot (d4, intersection) < 0)  {
                                 
                                 // Se tudo isso deu certo, estamos dentro do retângulo
+//                                console.log("Yes!");
                                 
-                                // Vamos ver se a hitbox que achamos está mais próxima de alguma outra ou não
+                                // Vamos ver se a hitbox que achamos está mais próxima do que alguma outra ou não
                                 if (result != null) {
+//                                    console.log("Hitbox achada.");
                                     
                                     // Pega a distância entre a bola e a hitbox (no sentido da velocidade)
-                                    var distance = minus(ball.position, intersectionPoint);
+                                    var distance = minus(ballClosestPosition, intersectionPoint);
                                     var n;
                                     
                                     // Se essa está mais perto
                                     if ((n = normS(distance)) < result[2]) {
                                         
                                         // Pegamos a distância entre a bola e a hitbox (no sentido da normal da hitbox)
-                                        limit = projection(ballToHitbox, hitboxNormal);
-                                        limit = mult(-1.0, limit);
+                                        ballToHitbox = mult(-1.0, ballToHitbox);
                                         
                                         // Coloca as informações dessa colisão no resultado
-                                        result = [possibles[i], limit, n];
+                                        result = [i, ballToHitbox, n];
                                     }
                                 }
                                 // Se esse é o primeiro resultado achado
                                 else {
                                     // Pegamos a distância entre a bola e a hitbox (no sentido da normal da hitbox)
-                                    limit = projection(ballToHitbox, hitboxNormal);
-                                    limit = mult(-1.0, limit);
+                                    ballToHitbox = mult(-1.0, ballToHitbox);
                                     
                                     // Coloca as informações dessa colisão no resultado
-                                    result = [possibles[i], limit, normS(minus(ball.position, intersectionPoint))];
+                                    result = [i, ballToHitbox, normS(minus(ballClosestPosition, intersectionPoint))];
                                 }
                                 
 
@@ -725,8 +740,11 @@ function limitForMovement(ball) {
     
     // Se não vamos bater em ninguém, não há o que retornar
     if (result == null) {
+//        console.log("Não tem ninguem.");
         return null;
     }
+    
+//    console.log("Achei alguem!");
 
     // Caso contrário, organizamos as informações e retornamos
     return [result[1], hitboxes[result[0]][4], hitboxes[result[0]][5]];
@@ -941,12 +959,23 @@ function render() {
     
     
     // Para cada bola
-    for (i = 0; i < objects.length; i++) {
-        objects[i].applyForces();
-        //        console.log(objects[i].forces, objects[i].position, objects[i].velocity);
+    for (i = 0; i < balls.length; i++) {
+        var obj = balls[i];
+        
+        // Move a bola
+        obj.applyForces();
+        
+        // Atualiza as informações da bola
+        obj.updateModelViewMatrix();
+        
+        // Manda para o shader a matriz a ser aplicada (projeção x view x model)
+        gl.uniformMatrix4fv(matrixLoc, false, flatten(times(projec, times(lookat, obj.modelViewMatrix))));
+        
+        // Desenha a bola
+        gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
     }
     
-    
+    // Para cada objeto
     for (i = 0; i < objects.length; i++) {
         var obj = objects[i];
         
@@ -956,13 +985,18 @@ function render() {
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
         gl.uniformMatrix4fv(matrixLoc, false, flatten(times(projec, times(lookat, obj.modelViewMatrix))));
         
-        // Desenha o objeto atual
-        gl.drawArrays( gl.TRIANGLES, 0, points.length);
+        // Desenha o objeto
+        gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
     }
-    
     
     
     
     
     requestAnimFrame(render);
 }
+
+
+
+
+
+
