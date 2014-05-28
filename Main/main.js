@@ -117,7 +117,7 @@ function finishInit() {
     
     readVertices(objStrings[1]);
     var tableVertexRange = readFaces(objStrings[1]);
-    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1, 90, 90, 0);
+    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1, 0, 0, 0);
     objects.push(table);
     
     
