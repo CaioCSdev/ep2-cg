@@ -115,16 +115,19 @@ function finishInit() {
     var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1);
     balls.push(ball);
     
+    ball.velocity = vec4(0.00, 0.0, 0.0, 0.0);
+    
+    
     readVertices(objStrings[1]);
     var tableVertexRange = readFaces(objStrings[1]);
-    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1, 0, 0, 0);
+    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1, 90, 0, 0);
     objects.push(table);
     
     
-    var hitbox = [vec4(-1.0, -0.5, -1.0, 1.0),      // Retângulo
-                  vec4( 1.0, -0.6, -1.0, 1.0),
-                  vec4( 1.0, -0.6,  1.0, 1.0),
-                  vec4(-1.0, -0.5,  1.0, 1.0),
+    var hitbox = [vec4(-1.5, -0.3, -1.5, 1.0),      // Retângulo
+                  vec4( 1.5, -0.4, -1.5, 1.0),
+                  vec4( 1.5, -0.4,  1.5, 1.0),
+                  vec4(-1.5, -0.3,  1.5, 1.0),
                   
                   vec4( 0.0,  1.0,  0.0, 0.0),      // Normal (unitária)
                   
@@ -136,19 +139,19 @@ function finishInit() {
     hitboxes.push(hitbox);
     
     
-    var hitbox2 = [vec4(-1.0, -0.4, -1.0, 1.0),      // Retângulo
-                   vec4( 1.0, -0.3, -1.0, 1.0),
-                   vec4( 1.0, -0.3,  1.0, 1.0),
-                   vec4(-1.0, -0.4,  1.0, 1.0),
-                   
-                   vec4( 0.0,  1.0,  0.0, 0.0),      // Normal (unitária)
-                   
-                   -0.2 ];                           // Aumento de energia
-    
-    hitbox2[4] = vcross(minus(hitbox2[1], hitbox2[0]), minus(hitbox2[3], hitbox2[0]));
-    hitbox2[4] = normalizev(hitbox2[4]);
-    
-    hitboxes.push(hitbox2);
+//    var hitbox2 = [vec4(-1.0, -0.4, -1.0, 1.0),      // Retângulo
+//                   vec4( 1.0, -0.3, -1.0, 1.0),
+//                   vec4( 1.0, -0.3,  1.0, 1.0),
+//                   vec4(-1.0, -0.4,  1.0, 1.0),
+//                   
+//                   vec4( 0.0,  1.0,  0.0, 0.0),      // Normal (unitária)
+//                   
+//                   -0.2 ];                           // Aumento de energia
+//    
+//    hitbox2[4] = vcross(minus(hitbox2[1], hitbox2[0]), minus(hitbox2[3], hitbox2[0]));
+//    hitbox2[4] = normalizev(hitbox2[4]);
+//    
+//    hitboxes.push(hitbox2);
     
     
     
@@ -521,7 +524,7 @@ function applyForces () {
     this.time += time;
     time /= 1000;
     
-    // Calcula a nova velocidadew
+    // Calcula a nova velocidade
     this.velocity = plus(this.velocity, mult(time, accel)); // v = v_0 + at
     
     // Se não estamos parados
@@ -541,46 +544,67 @@ function applyForces () {
             // Pega as informações da colisão
             var normalVector = limit[1];
             var energyCoefficient = limit[2];
+            var isSliding = limit[3];
             limit = limit[0];
             
             
-            // Calcula o deslocamento
-            var proj = projection(this.velocity, normalizev(limit));
-            
-            var v1 = normalizev(this.velocity);
-            
-            var sizeV1 = normS(this.velocity)*normS(limit)/normS(proj);
-            sizeV1 = Math.sqrt(sizeV1);
-            v1 = mult(0.9999 * sizeV1, v1);
             
             
-            
-            // Anda até o obstáculo
-            this.translate(v1);
-            
-            
-            
-            // Calcula a direção de reflexão
-            var p = projection(this.velocity, mult(-1, normalizev(limit)));
-            
-            var reflection = minus(this.velocity, mult(2, p));
-            reflection = normalizev(reflection);
-            
-            
-            // Calcula a velocidade nova
-            reflection = mult(norm(this.velocity), reflection);
-            var refProj = projection(reflection, normalVector);
-            
-//            if (normS(this.velocity) <= 0.00001) {
-//                energyCoefficient = 0.0015;
-//                refProj = normalizev(refProj);
-//            }
-            
-            // nharnharnharnharnharnharnharnharnharnharnharnharnharnharnharnharnahrnhar
-            
-            reflection = plus(reflection, mult(energyCoefficient, refProj));
-            
-            this.velocity = reflection;
+            // Se a bola estiver deslizando, não podemos deixar ela atravessar a parede
+            if (isSliding) {
+                // Precisamos acentuar o efeito da gravidade
+                this.velocity = minus(this.velocity, mult(8*time, accel)); // v = v_0 + at
+                
+                // Projetar a velocidade paralelamente ao plano
+                var slide = vcross(boardNormal, normalVector);
+                var newVelocity = projection(this.velocity, slide);
+                if (cosAngle(this.velocity, newVelocity) < 0) newVelocity = mult(-1.0, newVelocity);
+                this.velocity = newVelocity;
+                
+                // Evitar que erros de float deixem a bola se aproximar demais do plano
+                if (normS(limit) <= 0.000001) {
+                    this.velocity = plus(this.velocity, mult(0.000001, normalVector));
+                }
+                
+                // E então mover a bola
+                this.translate(this.velocity);
+            }
+            // Se ela estiver pingando
+            else {
+                
+                
+                // Calcula o deslocamento
+                var proj = projection(this.velocity, normalizev(limit));
+                
+                var v1 = normalizev(this.velocity);
+                
+                var sizeV1 = normS(this.velocity)*normS(limit)/normS(proj);
+                sizeV1 = Math.sqrt(sizeV1);
+                v1 = mult(0.9999 * sizeV1, v1);
+                
+                
+                
+                // Anda até o obstáculo
+                this.translate(v1);
+                
+                
+                
+                // Calcula a direção de reflexão
+                var p = projection(this.velocity, mult(-1, normalizev(limit)));
+                
+                var reflection = minus(this.velocity, mult(2, p));
+                reflection = normalizev(reflection);
+                
+                
+                // Calcula a velocidade nova
+                reflection = mult(norm(this.velocity), reflection);
+                var refProj = projection(reflection, normalVector);
+                
+                
+                reflection = plus(reflection, mult(energyCoefficient, refProj));
+                
+                this.velocity = reflection;
+            }
         }
         
         
@@ -600,15 +624,10 @@ function applyForces () {
 function limitForMovement(ball) {
     var limit;
     
-//    console.log("------------- Limit --------------");
     
     var ballSize = 0.01;
     
     var normSVelocity = normS(ball.velocity);
-    
-    if (normS(ball.velocity) <= 0.00001) {
-//        console.log("==========================\nStopped!!\n==========================");
-    }
     
     
     // Variável que guarda as informações da hitbox mais próxima
@@ -635,13 +654,10 @@ function limitForMovement(ball) {
         // (precisamos só da direção dela relativa à normal da hitbox)
         var ballToHitbox = minus(ballClosestPosition, hitboxRectangle[0]);
         
-//        console.log("Ta do lado certo?");
-//        console.log("ballToHitbox dot hitboxNormal > 0? ", ballToHitbox, hitboxNormal, vdot(ballToHitbox, hitboxNormal));
         
         // Se estamos do lado certo da hitbox
         if (vdot(ballToHitbox, hitboxNormal) > 0) {
             
-//            console.log("Yes!");
             // Achamos a distância real
             ballToHitbox = projection(ballToHitbox, mult(-1, hitboxNormal));
             
@@ -651,14 +667,12 @@ function limitForMovement(ball) {
             // Faz esse ponto menos um ponto qualquer da hitbox, de novo só pela direção
             movementRemainder =    minus(movementRemainder, hitboxRectangle[0]);
             
-//            console.log("Vai passar?");
-//        console.log("movementRemainder dot hitboxNormal < 0? ", movementRemainder, hitboxNormal, vdot(movementRemainder, hitboxNormal));
             
             
             
             // Se vamos passar do plano que contém a hitbox
             if (vdot(movementRemainder, hitboxNormal) < 0) {
-//                console.log("Yes!");
+
                 
                 // Novamente, acha a distância real
                 movementRemainder = projection(movementRemainder, hitboxNormal);
@@ -679,7 +693,7 @@ function limitForMovement(ball) {
                 // Pega um vetor que leva de algum canto da hitbox ao ponto de intersecção
                 var intersection = minus(intersectionPoint, hitboxRectangle[0]);
                 
-//                console.log("Estamos dentro do retangulo?");
+
                 // Pega o primeiro lado do retângulo
                 var d1 = minus(hitboxRectangle[1], hitboxRectangle[0]);
                 // O vetor de intersecção tem que fazer no máximo 90 graus com o 1o lado
@@ -698,11 +712,11 @@ function limitForMovement(ball) {
                             if (vdot (d4, intersection) < 0)  {
                                 
                                 // Se tudo isso deu certo, estamos dentro do retângulo
-//                                console.log("Yes!");
+
                                 
                                 // Vamos ver se a hitbox que achamos está mais próxima do que alguma outra ou não
                                 if (result != null) {
-//                                    console.log("Hitbox achada.");
+
                                     
                                     // Pega a distância entre a bola e a hitbox (no sentido da velocidade)
                                     var distance = minus(ballClosestPosition, intersectionPoint);
@@ -715,7 +729,7 @@ function limitForMovement(ball) {
                                         ballToHitbox = mult(-1.0, ballToHitbox);
                                         
                                         // Coloca as informações dessa colisão no resultado
-                                        result = [i, ballToHitbox, n];
+                                        result = [i, ballToHitbox];
                                     }
                                 }
                                 // Se esse é o primeiro resultado achado
@@ -724,7 +738,7 @@ function limitForMovement(ball) {
                                     ballToHitbox = mult(-1.0, ballToHitbox);
                                     
                                     // Coloca as informações dessa colisão no resultado
-                                    result = [i, ballToHitbox, normS(minus(ballClosestPosition, intersectionPoint))];
+                                    result = [i, ballToHitbox];
                                 }
                                 
 
@@ -738,16 +752,26 @@ function limitForMovement(ball) {
     }
     
     
+    // O resultado está estruturado assim:
+    // [Índice da hitbox mais perto no hitboxes[], Vetor que leva a bola à hitbox]
+    
+    
     // Se não vamos bater em ninguém, não há o que retornar
     if (result == null) {
-//        console.log("Não tem ninguem.");
         return null;
     }
     
-//    console.log("Achei alguem!");
+    
+    // Caso contrário, vamos checar se estamos ou não deslizando
+    var cos = Math.abs(cosAngle(ball.velocity, ballToHitbox));
+    if (cos <= 0.2) {
+        console.log("Desliza!");
+        return [result[1], hitboxes[result[0]][4], hitboxes[result[0]][5], true];
+    }
+    
 
     // Caso contrário, organizamos as informações e retornamos
-    return [result[1], hitboxes[result[0]][4], hitboxes[result[0]][5]];
+    return [result[1], hitboxes[result[0]][4], hitboxes[result[0]][5], false];
 }
 
 
