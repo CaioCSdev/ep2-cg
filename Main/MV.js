@@ -339,7 +339,7 @@ function translate( x, y, z )
 
 //----------------------------------------------------------------------------
 
-function rotate( angle, axis )
+function MVrotate( angle, axis )
 {
     if ( !Array.isArray(axis) ) {
         axis = [ arguments[1], arguments[2], arguments[3] ];
