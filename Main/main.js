@@ -26,6 +26,7 @@ var mouseRDown = false;
 var vertices = [];
 var points = [];
 var colors = [];
+var normals = [];
 
 var objects = [];
 var balls = [];
@@ -223,10 +224,23 @@ function finishInit() {
     gl.enableVertexAttribArray( vColor );
     
     
+    // Idem, para o vetor de normais
+    var nBuffer = gl.createBuffer();
+    gl.bindBuffer( gl.ARRAY_BUFFER, nBuffer );
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(normals), gl.DYNAMIC_DRAW );
+    
+    var vNormal = gl.getAttribLocation( program, "vNormal" );
+    gl.vertexAttribPointer( vNormal, 4, gl.FLOAT, false, 0, 0 );
+    gl.enableVertexAttribArray( vNormal );
+    
+    
+    
+    
+    
     
     // Pega as variáveis uniformes dos shaders
-    matrixLoc = gl.getUniformLocation(program, "matrix");
-    
+    modelViewLoc = gl.getUniformLocation(program, "modelView");
+    projecLoc = gl.getUniformLocation(program, "projection");
     
     
     // Inicializa a matriz lookat na posição inicial desejada (arbitrária)
@@ -369,6 +383,14 @@ function readFaces(string) {
             points.push(vertices[verticesStart + number[k]]);
         }
         
+        var v1 = minus(vertices[verticesStart + number[1]], vertices[verticesStart + number[0]]);
+        var v2 = minus(vertices[verticesStart + number[1]], vertices[verticesStart + number[2]]);
+        var faceNormal = vcross(v2, v1);
+        var faceNormal = normalizev(faceNormal);
+        
+        normals.push(faceNormal);
+        normals.push(faceNormal);
+        normals.push(faceNormal);
         
         // Adiciona as cores ao vetor de cores
         for (var k = 0; k < 3; k++) {
@@ -972,7 +994,8 @@ function render() {
         obj.updateModelViewMatrix();
         
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
-        gl.uniformMatrix4fv(matrixLoc, false, flatten(times(projec, times(lookat, obj.modelViewMatrix))));
+        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
+        gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
         
         // Desenha a bola
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
