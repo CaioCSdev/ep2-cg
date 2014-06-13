@@ -60,6 +60,16 @@ var boardNormal = vec4(0.0, 0.0, 1.0, 0.0);
 
 
 // ===================================================================================================
+/* Gameplay */
+var score = 0;
+
+// Audio
+var audioContext;
+
+var audioChannels = [];
+
+
+// ===================================================================================================
 /* Main */
 window.onload = function init()
 {
@@ -109,13 +119,23 @@ var readObjCallback = function(obj) {
 function finishInit() {
     i = 0;
     
-    // Liga os callbacks do mouse
+    //______________________________________________________________
+    // Liga os callbacks
     canvas.onmousedown = handleMouseDown;
     document.onmouseup = handleMouseUp;
     document.onmousemove = handleMouseMove;
     
     document.onkeydown = handleKeyDown;
     document.onkeyup = handleKeyUp;
+
+    //______________________________________________________________
+    // Inicializa o audio
+    initSounds();
+    
+    
+    
+    //______________________________________________________________
+    // Cria os objetos
     
     readVertices(objStrings[0]);
     var ballVertexRange = readFaces(objStrings[0]);
@@ -125,6 +145,8 @@ function finishInit() {
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
     
     
+    // Código para colocar o tabuleiro em jogo:
+//
 //    readVertices(objStrings[1]);
 //    var tableVertexRange = readFaces(objStrings[1]);
 //    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1, 90, 0, 0);
@@ -194,6 +216,7 @@ function finishInit() {
     computeNormals();
     
     
+    //__________________________________________________________
     /* Configuração do WebGL */
     gl.viewport( 0, 0, canvas.width, canvas.height );
     gl.clearColor( 0.1, 0.1, 0.1, 1.0 );
@@ -387,7 +410,7 @@ function readFaces(string) {
         for (i = j; string.charAt(i) != '\n'; i++);
         i++;
         
-        //__Adiciona os vértices__________________________________________________________________________
+        //__Adiciona os vértices___________________________________________________________
         
         
         // Adiciona os vértices, em ordem, ao vetor de "pontos"
@@ -395,13 +418,15 @@ function readFaces(string) {
             points.push(vertices[verticesStart + number[k]]);
         }
 
-        //__Adiciona as normais________________________________________________________________________
+        //__Adiciona as normais___________________________________________________________
         
         var v1 = minus(vertices[verticesStart + number[1]], vertices[verticesStart + number[0]]);
         var v2 = minus(vertices[verticesStart + number[1]], vertices[verticesStart + number[2]]);
         var faceNormal = vcross(v2, v1);
-        var faceNormal = normalizev(faceNormal);
-
+        faceNormal = normalizev(faceNormal);
+        faceNormal[1] = -faceNormal[1];
+        
+        
         normalsAux[verticesStart + number[0]].push(faceNormal);
         normalsAux[verticesStart + number[1]].push(faceNormal);
         normalsAux[verticesStart + number[2]].push(faceNormal);
@@ -415,8 +440,8 @@ function readFaces(string) {
         // Adiciona as cores ao vetor de cores
         for (var k = 0; k < 3; k++) {
             var c = vertices[verticesStart + number[k]];
-            var col = vec4(c[0], c[1], c[2], 1.0);
-            col = plus(col, vec4(0.5, 0.5, 0.5, 1.0));
+            var col = vec4(c[0]/2, c[0]/2, c[0]/2, 1.0);
+            col = plus(col, vec4(0.7, 0.7, 0.7, 1.0));
             
             colors.push(col);
         }
@@ -435,18 +460,20 @@ function readFaces(string) {
 }
 
 
-
+// Pega as normais de cada face e usa para calcular as normais de cada vértice
 function computeNormals () {
     for (var i = 0; i < normalsAux.length; i++) {
         
         var n = vec4(0.0, 0.0, 0.0, 0.0);
         var j;
         
-        for (j = 0; j < normalsAux[i].length; j++) {
+        for (j = 1; j < normalsAux[i].length; j++) {
             n = plus(n, normalsAux[i][j]);
         }
         
-        n = mult(1/j, n);
+        n = mult(1/(j-1), n);
+        n[3] = 0.0;
+        n = normalizev(n);
         normalsAux[i][0] = n;
     }
     
@@ -557,7 +584,7 @@ function newObjectBall ( vertexRange, position, size, theta, phi, psi ) {
                
                // Tempo desde a última atualização
                time: (new Date()).getTime(),
-               // Massa sa bola
+               // Massa da bola
                mass: 1.0,
                // Velocidade atual instantânea
                velocity: vec4(-0.0, 0.0, 0.0, 0.0),
@@ -609,6 +636,157 @@ function deformObj(v) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+// ===================================================================================================
+/* Gameplay */
+
+//_____________________________________________________
+// Score
+function addToScore ( value ) {
+    score += value;
+    updateScore();
+}
+
+function setScore ( value ) {
+    score = value;
+    updateScore();
+}
+
+
+function updateScore () {
+    document.getElementById("Score").innerHTML = "<font color=\"green\" size=\"2\" face=\"BlairMdITC TT\">Score: " + score + "</font>";
+}
+
+
+//_____________________________________________________
+// Events
+
+function ballWillCrash (energyCoefficient) {
+    playSound("click");
+}
+
+function ballDidCrash (energyCoefficient) {
+    if (energyCoefficient > 1) {
+        addToScore(100);
+    }
+    else {
+        addToScore(10);
+    }
+}
+
+//_____________________________________________________
+// Audio
+
+function initSounds () {
+    try {
+        window.AudioContext = window.AudioContext||window.webkitAudioContext;
+        audioContext = new AudioContext();
+    }
+    catch(e) {
+        alert('Web Audio API is not supported in this browser');
+    }
+    
+    
+    var bufferLoader = new BufferLoader( audioContext,
+                                        [
+                                        'Audio/click.wav',
+                                        ], finishLoadingAudio);
+    
+    bufferLoader.load();
+}
+
+function finishLoadingAudio ( bufferList ) {
+    audioChannels["click"] = bufferList[0];
+}
+
+function playSound (id ) {
+    var source = audioContext.createBufferSource();
+    source.buffer = audioChannels[ id ];
+    source.connect(audioContext.destination);
+    source.start(0);
+}
+
+
+
+//_____________________
+// Audio Buffers
+
+function BufferLoader(context, urlList, callback) {
+    this.context = context;
+    this.urlList = urlList;
+    this.onload = callback;
+    this.bufferList = new Array();
+    this.loadCount = 0;
+}
+
+BufferLoader.prototype.loadBuffer = function(url, index) {
+    // Load buffer asynchronously
+    var request = new XMLHttpRequest();
+    request.open("GET", url, true);
+    request.responseType = "arraybuffer";
+    
+    var loader = this;
+    
+    request.onload = function() {
+        // Asynchronously decode the audio file data in request.response
+        loader.context.decodeAudioData(
+                                       request.response,
+                                       function(buffer) {
+                                       if (!buffer) {
+                                       alert('error decoding file data: ' + url);
+                                       return;
+                                       }
+                                       loader.bufferList[index] = buffer;
+                                       if (++loader.loadCount == loader.urlList.length)
+                                       loader.onload(loader.bufferList);
+                                       },
+                                       function(error) {
+                                       console.error('decodeAudioData error', error);
+                                       }
+                                       );
+    }
+    
+    request.onerror = function() {
+        alert('BufferLoader: XHR error');
+    }
+    
+    request.send();
+}
+
+BufferLoader.prototype.load = function() {
+    for (var i = 0; i < this.urlList.length; ++i)
+        this.loadBuffer(this.urlList[i], i);
+}
+
+
+
+
+
+
+
+
+
+
+// ===================================================================================================
+/* Física */
+
+
+
+
+
+
+
 // Aplica as forças acumuladas a um objeto
 function applyForces () {
     // Pega a aceleração
@@ -626,8 +804,7 @@ function applyForces () {
     this.velocity = plus(this.velocity, mult(time, accel)); // v = v_0 + at
     
     
-    /*\\\________________________________________________________________________*/
-    
+    //__________________________________________________________
     
     
     // Calcula o limite de deslocamento
@@ -646,9 +823,9 @@ function applyForces () {
         var energyCoefficient = limit[1];
         limit = limit[2];
         
+        ballWillCrash(energyCoefficient);
         
-        
-        /*\\\________________________________________________________________________*/
+        //__________________________________________________________
         
         
         limit = plus(limit, mult(0.0001, normalVector));
@@ -666,7 +843,7 @@ function applyForces () {
         this.translate(v1);
         
         
-        /*\\\________________________________________________________________________*/
+        //__________________________________________________________
         
         // Reflete a velocidade
         // Calcula a direção de reflexão
@@ -680,6 +857,8 @@ function applyForces () {
         
         this.velocity = reflection;
         
+        ballDidCrash(energyCoefficient);
+        
     }
     
     
@@ -688,15 +867,16 @@ function applyForces () {
     
     // Coloca rotação na bola
     // Descobre o eixo de rotação
-    
     var rotationAxis = vcross(this.velocity, boardNormal);
     rotationAxis[0] = -rotationAxis[0];
+    // Descobre o ângulo
     var angle = norm(this.velocity)/ballCircumference * 360;
+    // Pega a matriz a partir disso
     var matrix = MVrotate(angle, rotationAxis);
-//    console.log(matrix);
-    this.rotationMatrix = times(matrix, this.rotationMatrix);
-//    this.hasToUpdateMatrix = true;
     
+    // Aplica a matriz
+    this.rotationMatrix = times(matrix, this.rotationMatrix);
+    this.hasToUpdateMatrix;
 }
 
 

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
     <p> </p>
-
+<p id="Score"><font color="green" size="2" face="BlairMdITC TT">Score: 0</font></p>
     <head>
         
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
@@ -25,33 +25,33 @@
 
                 void main() {
                     
-                    // FAZER A LUZ PARAR DE GIRAR COM A BOLA!
                     
+                    vec4 ambient, diffuse, specular;
                     float shininess = 50.0;
                     
-                    vec4 light = vec4(0.7, 0.7, 0.0, 0.0);
-                    vec4 ambient, diffuse, specular;
-                    vec3 n = normalize(vNormal.xyz);
-                    vec3 l = normalize(vec3(1.0, 1.0, 1.0) - (modelView * vPosition).xyz);
-                    vec3 c = -normalize((modelView * vPosition).xyz);
+                    vec4 newPosition = modelView * vPosition;
+                    vec4 newNormal = modelView * vNormal;
+                    
+                    vec4 aLight = vec4(0.3, 0.3, 0.3, 0.0);
+                    vec4 dLight = vec4(0.4, 0.4, 0.4, 0.0);
+                    vec4 sLight = vec4(1.0, 1.0, 1.0, 0.0);
+                    
+                    vec3 n = normalize(newNormal.xyz);
+                    vec3 l = normalize(vec3(1.0, 1.0, 1.0) - (newPosition).xyz);
+                    vec3 c = -normalize((newPosition).xyz);
                     vec3 h = normalize(l+c);
                     
+                    float ka = 1.0;
                     float kd = max(dot(l, n), 0.0);
                     float ks = pow(max(dot(n, h), 0.0), shininess);
                     
-                    ambient = 0.0 * product(light, vColor);
-                    diffuse = kd * product(light, vColor);
-                    specular = max(ks, 0.0) * product(light, vColor);
+                    ambient = ka * product(aLight, vColor);
+                    diffuse = kd * product(dLight, vColor);
+                    specular = max(ks * product(sLight, vColor), 0.0);
                     
-                    
-//                    vec4 col = vec4(193.0/256.0, 165.0/256.0, 119.0/256.0, 1.0);
-//                    vec4 col = vec4(0.7, 0.8, 0.8, 1.0);
-//                    float c = (vPosition[0] + vPosition[1] + vPosition[2]) / 3.0;
-//                    color = col + 1.5 * c;
-//                    color = vPosition + vec4(0.3,0.3, 0.3, 0.0);
                     color = vec4((ambient + diffuse + specular).xyz, 1.0);
 
-                    gl_Position = projection * modelView * vPosition;
+                    gl_Position = projection * newPosition;
                 }
 
             
