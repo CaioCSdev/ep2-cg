@@ -27,6 +27,8 @@ var vertices = [];
 var points = [];
 var colors = [];
 var normals = [];
+var normalsAux = [];
+var pointsAux = [];
 
 var objects = [];
 var balls = [];
@@ -185,6 +187,13 @@ function finishInit() {
     
     
     
+    
+    
+    
+    //__________________________________________________________
+    computeNormals();
+    
+    
     /* Configuração do WebGL */
     gl.viewport( 0, 0, canvas.width, canvas.height );
     gl.clearColor( 0.1, 0.1, 0.1, 1.0 );
@@ -324,6 +333,7 @@ function readVertices(string) {
         
         // Coloca o novo vértice na lista
         vertices.push( vertex );
+        normalsAux.push( [vec4( 0.0, 0.0, 0.0, 0.0 )] );
     }
     
 }
@@ -377,20 +387,30 @@ function readFaces(string) {
         for (i = j; string.charAt(i) != '\n'; i++);
         i++;
         
+        //__Adiciona os vértices__________________________________________________________________________
+        
         
         // Adiciona os vértices, em ordem, ao vetor de "pontos"
         for (var k = 0; k < 3; k++) {
             points.push(vertices[verticesStart + number[k]]);
         }
+
+        //__Adiciona as normais________________________________________________________________________
         
         var v1 = minus(vertices[verticesStart + number[1]], vertices[verticesStart + number[0]]);
         var v2 = minus(vertices[verticesStart + number[1]], vertices[verticesStart + number[2]]);
         var faceNormal = vcross(v2, v1);
         var faceNormal = normalizev(faceNormal);
+
+        normalsAux[verticesStart + number[0]].push(faceNormal);
+        normalsAux[verticesStart + number[1]].push(faceNormal);
+        normalsAux[verticesStart + number[2]].push(faceNormal);
         
-        normals.push(faceNormal);
-        normals.push(faceNormal);
-        normals.push(faceNormal);
+        pointsAux.push(verticesStart + number[0]);
+        pointsAux.push(verticesStart + number[1]);
+        pointsAux.push(verticesStart + number[2]);
+        
+        //__________________________________________________________________________
         
         // Adiciona as cores ao vetor de cores
         for (var k = 0; k < 3; k++) {
@@ -413,6 +433,31 @@ function readFaces(string) {
     
     return vec2(vertexStart, vertexEnd - vertexStart);
 }
+
+
+
+function computeNormals () {
+    for (var i = 0; i < normalsAux.length; i++) {
+        
+        var n = vec4(0.0, 0.0, 0.0, 0.0);
+        var j;
+        
+        for (j = 0; j < normalsAux[i].length; j++) {
+            n = plus(n, normalsAux[i][j]);
+        }
+        
+        n = mult(1/j, n);
+        normalsAux[i][0] = n;
+    }
+    
+    for (var i = 0; i < points.length; i++) {
+        normals.push(normalsAux[pointsAux[i]][0]);
+    }
+    
+    normalsAux = [];
+    pointsAux = [];
+}
+
 
 
 /* Cria um novo objeto de acordo com os parâmetros passados */
