@@ -65,9 +65,8 @@ var score = 0;
 
 // Audio
 var audioContext;
-
 var audioChannels = [];
-
+var audioNames = ["click"];
 
 // ===================================================================================================
 /* Main */
@@ -111,9 +110,9 @@ var readObjCallback = function(obj) {
         index++;
         readObj(stringNames[index]);
     }
-    // Se já acabou, pode fazer o resto
+    // Se já acabou, podemos começar a carregar os sons
     else
-        finishInit();
+        initSounds();
 };
 
 function finishInit() {
@@ -127,10 +126,6 @@ function finishInit() {
     
     document.onkeydown = handleKeyDown;
     document.onkeyup = handleKeyUp;
-
-    //______________________________________________________________
-    // Inicializa o audio
-    initSounds();
     
     
     
@@ -689,6 +684,8 @@ function ballDidCrash (energyCoefficient) {
 // Audio
 
 function initSounds () {
+    
+    // Cria o contexto de áudio
     try {
         window.AudioContext = window.AudioContext||window.webkitAudioContext;
         audioContext = new AudioContext();
@@ -697,22 +694,33 @@ function initSounds () {
         alert('Web Audio API is not supported in this browser');
     }
     
+    // Cria um vetor com os caminhos para os arquivos de áudio
+    var audioPaths = [];
+    for (var i = 0; i < audioNames.length; i++) {
+        audioPaths[i] = "Audio/" + audioNames[i] + ".wav";
+    }
     
-    var bufferLoader = new BufferLoader( audioContext,
-                                        [
-                                        'Audio/click.wav',
-                                        ], finishLoadingAudio);
+    // Lê os arquivos (assincronamente)
+    var bufferLoader = new BufferLoader( audioContext, audioPaths, finishLoadingAudio);
     
     bufferLoader.load();
 }
 
 function finishLoadingAudio ( bufferList ) {
-    audioChannels["click"] = bufferList[0];
+    // Coloca os arquivos lidos no seu vetor
+    for (var i = 0; i < audioNames.length; i++) {
+        audioChannels[audioNames[i]] = bufferList[i];
+    }
+    
+    finishInit();
 }
 
 function playSound (id ) {
+    // Cria uma fonte para tocar o som
     var source = audioContext.createBufferSource();
+    // Pega o arquivo
     source.buffer = audioChannels[ id ];
+    // Toca o som
     source.connect(audioContext.destination);
     source.start(0);
 }
