@@ -140,7 +140,7 @@ function finishInit() {
     // Cria os objetos
     
     var ballVertexRange = readObject(objStrings[0]);
-    var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.1, 0.0, 1.0), 0.1);
+    var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.1, 0.9, 1.0), 0.07);
     balls.push(ball);
     
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
@@ -150,10 +150,18 @@ function finishInit() {
     // Código para colocar o tabuleiro em jogo:
 
     var tableVertexRange = readObject(objStrings[1]);
-    var table = newObject(tableVertexRange, vec4(0.0, -0.1, 0.3, 1.0), 0.1, vec4(1.0, 0.0, 0.0, 0.0), 180);
-//    table.rotate(vec4(0.0, 0.0, 1.0, 0.0), -90);
+    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.3, 1.0), 0.15, vec4(1.0, 0.0, 0.0, 0.0), -90);
+    table.rotate(vec4(0.0, 0.0, 1.0, 0.0), -90);
     objects.push(table);
+
     
+    
+    
+    
+    
+    
+    //__________________________________________________________
+    /* Hitboxes */
     var hitbox = [vec2(-1.0, -0.15),      // Coordenadas
                   vec2(1.0, -0.0),
                   
@@ -312,7 +320,7 @@ function readObject( string ) {
         // Leitura da coordenada z
         i = j + 1;
         for (j = i; string.charAt(j) != '\n'; j++);
-        vertex[2] = parseFloat(string.substr(i, j-1)) / 2;
+        vertex[2] = -parseFloat(string.substr(i, j-1)) / 2;
         
         
         vertex[3] = 1.0;    // Coordenada homogênea
@@ -862,9 +870,9 @@ function updateModelViewMatrix() {
 // Cria e seta a matriz de perspectiva
 function updatePerspective() {
     //    projec = perspective(60, canvas.width/canvas.height, 2.0, 0.0001);
+    projec = mat4();
     var orthoZoom = 0.5;
-//    projec = mat4();
-    projec = ortho(orthoZoom  * -canvas.width/canvas.height, orthoZoom  * canvas.width/canvas.height, orthoZoom  * -1, orthoZoom  * 1, orthoZoom  * -4.1, orthoZoom  * -0.1);
+    projec = ortho(orthoZoom  * -canvas.width/canvas.height, orthoZoom  * canvas.width/canvas.height, orthoZoom  * -1.6, orthoZoom  * 1.6, orthoZoom  * -4.1, orthoZoom  * -0.1);
 //    projec = perspective(60, canvas.width/canvas.height, 2.0, 0.0001);
 }
 
