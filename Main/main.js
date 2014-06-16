@@ -122,6 +122,7 @@ var readObjCallback = function(obj) {
         initSounds();
 };
 
+
 function finishInit() {
     i = 0;
     
@@ -140,7 +141,7 @@ function finishInit() {
     // Cria os objetos
     
     var ballVertexRange = readObject(objStrings[0]);
-    var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.1, 0.9, 1.0), 0.07);
+    var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.1, 0.25, 1.0), 0.05);
     balls.push(ball);
     
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
@@ -150,8 +151,9 @@ function finishInit() {
     // Código para colocar o tabuleiro em jogo:
 
     var tableVertexRange = readObject(objStrings[1]);
-    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.3, 1.0), 0.15, vec4(1.0, 0.0, 0.0, 0.0), -90);
+    var table = newObject(tableVertexRange, vec4(0.07, 0.0, 0.23, 1.0), 0.1, vec4(1.0, 0.0, 0.0, 0.0), 90);
     table.rotate(vec4(0.0, 0.0, 1.0, 0.0), -90);
+    table.deform(vec4(1.0, 0.3, 1.0, 0.0));
     objects.push(table);
 
     
@@ -247,7 +249,7 @@ function finishInit() {
     
     
     // Inicializa a matriz lookat na posição inicial desejada (arbitrária)
-    eye = vec3(0.0, 0.0, 1.0);
+    eye = vec3(0.0, -0.5, 0.6);
     at = vec3(0.0, 0.0, 0.0);
     up = vec3(0.0, 1.0, 0.0);
     lookat = lookAt(eye, at, up);
@@ -320,7 +322,7 @@ function readObject( string ) {
         // Leitura da coordenada z
         i = j + 1;
         for (j = i; string.charAt(j) != '\n'; j++);
-        vertex[2] = -parseFloat(string.substr(i, j-1)) / 2;
+        vertex[2] = parseFloat(string.substr(i, j-1)) / 2;
         
         
         vertex[3] = 1.0;    // Coordenada homogênea
@@ -870,10 +872,10 @@ function updateModelViewMatrix() {
 // Cria e seta a matriz de perspectiva
 function updatePerspective() {
     //    projec = perspective(60, canvas.width/canvas.height, 2.0, 0.0001);
-    projec = mat4();
-    var orthoZoom = 0.5;
-    projec = ortho(orthoZoom  * -canvas.width/canvas.height, orthoZoom  * canvas.width/canvas.height, orthoZoom  * -1.6, orthoZoom  * 1.6, orthoZoom  * -4.1, orthoZoom  * -0.1);
-//    projec = perspective(60, canvas.width/canvas.height, 2.0, 0.0001);
+//    projec = mat4();
+//    var orthoZoom = 0.5;
+//    projec = ortho(orthoZoom  * -canvas.width/canvas.height, orthoZoom  * canvas.width/canvas.height, orthoZoom  * -1.6, orthoZoom  * 1.6, orthoZoom  * -4.1, orthoZoom  * -0.1);
+    projec = perspective(60, canvas.width/canvas.height, 4.0, 0.0001);
 }
 
 
@@ -1068,14 +1070,12 @@ function render() {
         obj.updateModelViewMatrix();
         
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
-        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(projec, times(lookat, obj.modelViewMatrix))));
+        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
         gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
         
         // Desenha o objeto
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
     }
-    
-    
     
     
     requestAnimFrame(render);
