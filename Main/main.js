@@ -154,16 +154,23 @@ function finishInit() {
 //    table.rotate(vec4(0.0, 0.0, 1.0, 0.0), -90);
     objects.push(table);
     
-    var hitbox = [vec2(0.0, -0.1),      // Coordenadas
-                  vec2(1.0, -0.1),
+    var hitbox = [vec2(-1.0, -0.15),      // Coordenadas
+                  vec2(1.0, -0.0),
                   
-                  vec4(0.0, 1.0, 0.0, 0.0),      // Normal (unitária)
+                  vec4(-0.14, 0.9, 0.0, 0.0),      // Normal (unitária)
                   
-                  0.0 ];                        // Aumento de energia
+                  0.9 ];                        // Aumento de energia
     
     hitboxes.push(hitbox);
     
-
+    var hitbox2 = [vec2(-1.0, -0.0),      // Coordenadas
+                  vec2(1.0, -0.15),
+                  
+                  vec4(0.14, 0.9, 0.0, 0.0),      // Normal (unitária)
+                  
+                  0.9 ];                        // Aumento de energia
+    
+    hitboxes.push(hitbox2);
     
     
     
@@ -763,9 +770,13 @@ function applyForces () {
         var translationLimit = plus(resultHitboxDistance, mult(0.01, n));
         this.translate(resultHitboxDistance);
         
-        var pa = projection(speed, resultHitboxDistance);
+        var p = projection(speed, resultHitboxDistance);
         
-        this.velocity = plus(speed, mult(-2, pa));
+        this.velocity = plus(speed, mult(-2 * hitbox[3], p));
+        
+        if (normS(p) <= 0.01*0.01) {
+            this.velocity = plus(this.velocity, mult(0.001, n));
+        }
     }
 
 }
