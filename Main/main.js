@@ -701,6 +701,7 @@ function applyForces () {
     
     var resultHitboxIndex = -1;
     var resultHitboxDistance = vec4(100.0, 0.0, 0.0, 0.0);
+    var resultTooCloseDistances = [];
     
     // Para cada hitbox
     for (var i = 0; i < hitboxes.length; i++) {
@@ -730,20 +731,37 @@ function applyForces () {
                 }
             }
         } // Fecha os 3 ifs
+        else if (dot(n, ballToHitbox) == 0.0) {    // Está perto demais!!
+            resultHitboxIndex = -2;
+            resultTooCloseDistances.push(n);
+        }
         
         
     } // For das hitboxes
+
     
     
     
+    
+    
+    // _____________________________________________________________
     
     // Se nao tivermos achado nenhuma hitbox
     if (resultHitboxIndex == -1) {
         this.translate(speed);
     }
+    else if (resultHitboxIndex == -2) {
+        for (var i = 0; i < resultTooCloseDistances.length; i++) {
+            this.translate(mult(0.001, resultTooCloseDistances[i]));
+        }
+    }
     // Se achamos alguma
     else {
-        this.translate(mult(0.9, resultHitboxDistance));
+        var hitbox = hitboxes[resultHitboxIndex];
+        var n = hitbox[2];
+        
+        var translationLimit = plus(resultHitboxDistance, mult(0.01, n));
+        this.translate(resultHitboxDistance);
         
         var pa = projection(speed, resultHitboxDistance);
         
