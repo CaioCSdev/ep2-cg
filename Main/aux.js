@@ -287,6 +287,38 @@ function rotateInXYZInc (theta, phi, psi, oldMatrix) {
     return times4(rotateInX(theta), rotateInY(phi), rotateInZ(psi), oldMatrix);
 }
 
+//----------------------------------------------------------------------------
+
+function mvlibRotate( axis, angle )
+{
+    if ( !Array.isArray(axis) ) {
+        axis = [ arguments[1], arguments[2], arguments[3] ];
+    }
+    
+    var v = normalize( axis );
+    
+    var x = v[0];
+    var y = v[1];
+    var z = v[2];
+    
+    var c = Math.cos( radians(angle) );
+    var omc = 1.0 - c;
+    var s = Math.sin( radians(angle) );
+    
+    var result = mat4(
+                      vec4( x*x*omc + c,   x*y*omc - z*s, x*z*omc + y*s, 0.0 ),
+                      vec4( x*y*omc + z*s, y*y*omc + c,   y*z*omc - x*s, 0.0 ),
+                      vec4( x*z*omc - y*s, y*z*omc + x*s, z*z*omc + c,   0.0 ),
+                      vec4()
+                      );
+    
+    return result;
+}
+
+function mvlibRotateInc (vector, angle, oldMatrix) {
+    return times(mvlibRotate(vector, angle), oldMatrix);
+}
+
 /* Matrizes de translação */
 
 function translate (vector) {

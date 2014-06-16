@@ -43,8 +43,14 @@ var previousPointsSize = 0;
 
 
 
-var ballSize = 0.01;
+
+// ===================================================================================================
+/* Física */
+var gravity = vec4(0.0, -0.001, 0.0, 0.0);
+
+var ballSize = 0.001;
 var ballCircumference = 2 * Math.PI * ballSize;
+
 
 
 // ===================================================================================================
@@ -91,7 +97,7 @@ window.onload = function init()
     oldWidth = screenWidth;
     oldHeight = screenHeight;
     
-    stringNames = ['ball.vobj', 'pinball5.vobj'];
+    stringNames = ['ball.vobj', 'pinball7.vobj'];
     readObj(stringNames[0]);
 }
 
@@ -134,7 +140,7 @@ function finishInit() {
     // Cria os objetos
     
     var ballVertexRange = readObject(objStrings[0]);
-    var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1);
+    var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.1, 0.0, 1.0), 0.1);
     balls.push(ball);
     
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
@@ -144,62 +150,20 @@ function finishInit() {
     // Código para colocar o tabuleiro em jogo:
 
     var tableVertexRange = readObject(objStrings[1]);
-    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.3, 1.0), 0.1, -90, 0, 0);
+    var table = newObject(tableVertexRange, vec4(0.0, -0.1, 0.3, 1.0), 0.1, vec4(1.0, 0.0, 0.0, 0.0), 180);
+//    table.rotate(vec4(0.0, 0.0, 1.0, 0.0), -90);
     objects.push(table);
     
-    var hitbox = [vec4(-1.5, -0.3, -1.5, 1.0),      // Retângulo
-                  vec4( 1.5, -0.4, -1.5, 1.0),
-                  vec4( 1.5, -0.4,  1.5, 1.0),
+    var hitbox = [vec2(0.0, -0.1),      // Coordenadas
+                  vec2(1.0, -0.1),
                   
-                  vec4( 0.0,  1.0,  0.0, 0.0),      // Normal (unitária)
+                  vec4(0.0, 1.0, 0.0, 0.0),      // Normal (unitária)
                   
-                  -0.3 ];                           // Aumento de energia
-    
-    hitbox[3] = vcross(minus(hitbox[1], hitbox[0]), minus(hitbox[2], hitbox[0]));
-    hitbox[3] = normalizev(hitbox[3]);
+                  0.0 ];                        // Aumento de energia
     
     hitboxes.push(hitbox);
     
-    var hitbox2 = [vec4(-1.5, -0.3, -1.5, 1.0),      // Retângulo
-                   vec4( 1.5, -0.4,  1.5, 1.0),
-                   vec4(-1.5, -0.3,  1.5, 1.0),
-                   
-                   vec4( 0.0,  1.0,  0.0, 0.0),      // Normal (unitária)
-                   
-                   -0.3 ];                           // Aumento de energia
-    
-    hitbox2[3] = vcross(minus(hitbox2[1], hitbox2[0]), minus(hitbox2[2], hitbox2[0]));
-    hitbox2[3] = normalizev(hitbox2[3]);
-    
-    hitboxes.push(hitbox2);
-    
-    
-    
-    var hitbox3 = [vec4(-1.5, -0.4, -1.5, 1.0),      // Retângulo
-                   vec4( 1.5, -0.3,  1.5, 1.0),
-                   vec4(-1.5, -0.4,  1.5, 1.0),
-                   
-                   vec4( 0.0,  1.0,  0.0, 0.0),      // Normal (unitária)
-                   
-                   -0.3 ];                           // Aumento de energia
-    
-    hitbox3[3] = vcross(minus(hitbox3[1], hitbox3[0]), minus(hitbox3[2], hitbox3[0]));
-    hitbox3[3] = normalizev(hitbox3[3]);
-    
-    hitboxes.push(hitbox3);
 
-    var hitbox4 = [vec4(-1.5, -0.4, -1.5, 1.0),      // Retângulo
-                   vec4( 1.5, -0.3, -1.5, 1.0),
-                   vec4( 1.5, -0.3,  1.5, 1.0),
-                   
-                   vec4( 0.0,  1.0,  0.0, 0.0),      // Normal (unitária)
-                   
-                   -0.3 ];                           // Aumento de energia
-    
-    hitbox4[3] = vcross(minus(hitbox4[1], hitbox4[0]), minus(hitbox4[2], hitbox4[0]));
-    hitbox4[3] = normalizev(hitbox4[3]);
-    
-    hitboxes.push(hitbox4);
     
     
     
@@ -308,7 +272,6 @@ function finishInit() {
 /* INICIALIZAÇÃO DE OBJETOS */
 // Lê os vértices de cada peça e os armazena no vetor
 function readObject( string ) {
-    console.log("Vertices start");
     var result;
     var numberOfVertices;
     var i = 3;
@@ -359,7 +322,6 @@ function readObject( string ) {
         colors.push(vec4(0.2, 0.2, 0.6, 0.0));
     }
     
-    console.log("Vertices end");
     
     
     
@@ -373,7 +335,6 @@ function readObject( string ) {
     //________________________________________________________________________________
     
     
-    console.log("Normals start")
     
     // Checa se o resto do arquivo está certo
     if (string.charAt(i) != 'n') {
@@ -419,13 +380,12 @@ function readObject( string ) {
 
 /* Cria um novo objeto de acordo com os parâmetros passados */
 
-function newObject( vertexRange, position, size, theta, phi, psi ) {
+function newObject( vertexRange, position, size, vector, angle ) {
     
     if (! position) position = vec4(0.0, 0.0, 0.0, 1.0);
     if (! size    )     size = 1.0;
-    if (! theta   )    theta = 0.0;
-    if (! phi     )      phi = 0.0;
-    if (! psi     )      psi = 0.0;
+    if (! vector  )   vector = vec4(0.0, 1.0, 0.0, 0.0);
+    if (! angle   )    angle = 0.0;
     
     
     
@@ -441,7 +401,7 @@ function newObject( vertexRange, position, size, theta, phi, psi ) {
                translationMatrix: translate(position),
                
                // Matriz de rotação
-               rotationMatrix: rotateInXYZ(theta, phi, psi),
+               rotationMatrix: mvlibRotate(vector, angle),
                
                // Matriz de escala
                scaleMatrix: scale(size),
@@ -457,10 +417,10 @@ function newObject( vertexRange, position, size, theta, phi, psi ) {
                //==============================================
                
                // Métodos de transformação geométrica dos objetos
-               translate: translateInc,
-               rotate: rotateInXYZInc,
-               scale: scaleInc,
-               deform: deformInc,
+               translate: translateObj,
+               rotate: rotateObj,
+               scale: scaleObj,
+               deform: deformObj,
                
                });
     
@@ -469,15 +429,13 @@ function newObject( vertexRange, position, size, theta, phi, psi ) {
 
 
 
-
 /* Cria uma nova bola */
-function newObjectBall ( vertexRange, position, size, theta, phi, psi ) {
+function newObjectBall ( vertexRange, position, size, vector, angle ) {
     
     if (! position) position = vec4(0.0, 0.0, 0.0, 1.0);
     if (! size    )     size = 1.0;
-    if (! theta   )    theta = 0.0;
-    if (! phi     )      phi = 0.0;
-    if (! psi     )      psi = 0.0;
+    if (! vector  )   vector = vec4(0.0, 1.0, 0.0, 0.0);
+    if (! angle   )    angle = 0.0;
     
     
     
@@ -492,7 +450,7 @@ function newObjectBall ( vertexRange, position, size, theta, phi, psi ) {
                position: position,
                translationMatrix: translate(position),
                
-               rotationMatrix: rotateInXYZ(theta, phi, psi),
+               rotationMatrix: mvlibRotate(vector, angle),
                
                scaleMatrix: scale(size),
                
@@ -518,8 +476,6 @@ function newObjectBall ( vertexRange, position, size, theta, phi, psi ) {
                mass: 1.0,
                // Velocidade atual instantânea
                velocity: vec4(-0.0, 0.0, 0.0, 0.0),
-               // Acumulador de forças
-               forces: gravity(),
                // Aplica as forças, move a bola e reseta o acumulador
                applyForces: applyForces,
                
@@ -544,10 +500,10 @@ function translateObj(vector) {
 }
 
 // Rotação
-function rotateObj(theta, phi, psi) {
+function rotateObj(v, a) {
     this.hasToUpdateMatrix = true;
     
-    this.rotationMatrix = rotateInXYZInc(theta, phi, psi, this.rotationMatrix);
+    this.rotationMatrix = times(mvlibRotate(v, a), this.rotationMatrix);
 }
 
 // Escala
@@ -729,175 +685,76 @@ BufferLoader.prototype.load = function() {
 
 
 
+//var hitbox = [vec2(0.0, -0.1),      // Coordenadas
+//              vec2(1.0, -0.1),
+//              
+//              vec4(0.0, 1.0, 0.0, 0.0),      // Normal (unitária)
+//              
+//              0.0 ];                        // Aumento de energia
 
 // Aplica as forças acumuladas a um objeto
 function applyForces () {
-    // Pega a aceleração
-    var accel = mult(1.0/this.mass, this.forces);           // F = ma -> a = F/m
     
-    // Zera o acumulador de forças
-    this.forces = gravity();
+    this.velocity = plus(this.velocity, gravity);
     
-    // Acha o intervalo de tempo
-    var time = (new Date()).getTime() - this.time;
-    this.time += time;
-    time /= 1000;
+    var speed = this.velocity;
     
-    // Calcula a nova velocidade
-    this.velocity = plus(this.velocity, mult(time, accel)); // v = v_0 + at
+    var resultHitboxIndex = -1;
+    var resultHitboxDistance = vec4(100.0, 0.0, 0.0, 0.0);
     
-    
-    //__________________________________________________________
-    
-    
-    // Calcula o limite de deslocamento
-    var limit = limitForMovement(this);         // "O quanto a bola pode andar"
-    
-    
-    // Se não vai bater em ninguem, é só andar
-    if (limit == null) {
-        this.translate(this.velocity);
-    }
-    
-    // Se vai bater em alguém, tratamos a colisão
-    else {
-        // Pega as informações da colisão
-        var normalVector = limit[0];
-        var energyCoefficient = limit[1];
-        limit = limit[2];
-        
-        ballWillCrash(energyCoefficient);
-        
-        //__________________________________________________________
-        
-        
-        limit = plus(limit, mult(0.0001, normalVector));
-        
-        // Calcula o deslocamento
-        var proj = projection(this.velocity, limit);
-        
-        var v1 = normalizev(this.velocity);
-        
-        var sizeV1 = normS(this.velocity)*normS(limit)/normS(proj);
-        sizeV1 = Math.sqrt(sizeV1);
-        v1 = mult(0.999 * sizeV1, v1);
-        
-        // Anda até o obstáculo
-        this.translate(v1);
-        
-        
-        //__________________________________________________________
-        
-        // Reflete a velocidade
-        // Calcula a direção de reflexão
-        var p = projection(this.velocity, mult(-1, normalizev(limit)));
-        
-        var reflection = minus(this.velocity, mult(2, p));
-
-        var refProj = projection(reflection, normalVector);
-        reflection = plus(reflection, mult(energyCoefficient, refProj));
-        
-        
-        this.velocity = reflection;
-        
-        ballDidCrash(energyCoefficient);
-        
-    }
-    
-    
-    
-    
-    
-    // Coloca rotação na bola
-    // Descobre o eixo de rotação
-    var rotationAxis = vcross(this.velocity, boardNormal);
-    rotationAxis[0] = -rotationAxis[0];
-    // Descobre o ângulo
-    var angle = norm(this.velocity)/ballCircumference * 360;
-    // Pega a matriz a partir disso
-    var matrix = MVrotate(angle, rotationAxis);
-    
-    // Aplica a matriz
-    this.rotationMatrix = times(matrix, this.rotationMatrix);
-    this.hasToUpdateMatrix;
-}
-
-
-
-
-// Retorna o deslocamento máximo que a bola pode ter com relação a uma superfície
-function limitForMovement(ball) {
-    
-    
-    // Variável que guarda as informações da hitbox mais próxima
-    var result = null;
-    
-    
-    
-    
-    // Vamos ver se a bola vai atravessar cada hitbox ou não
+    // Para cada hitbox
     for (var i = 0; i < hitboxes.length; i++) {
-        // Pega as informações da hitbox atual
+        // Pega as informações da hitbox
         var hitbox = hitboxes[i];
-        var hitboxTriangle = [hitbox[0], hitbox[1], hitbox[2]];
-        var hitboxNormal = hitbox[3];
-        var hitboxEnergy = hitbox[4];
+        var n = hitbox[2];
+        var h0 = vec4(hitbox[0][0], hitbox[0][1], 0.0, 0.0);
+        var h1 = vec4(hitbox[1][0], hitbox[1][1], 0.0, 0.0);
         
         
+        // Descobre se a bola está na frente da hitbox
+        var ballClosest = plus(this.position, mult(-ballSize, n));
+        var ballToHitbox = minus(h0, ballClosest);
         
-        // Acha o ponto da bola mais perto da superfície
-        var ballCenterToSurface = mult(-ballSize, hitboxNormal);
-        var ballSurface = plus(ball.position, ballCenterToSurface);
-        
-        // Descobre se a superfície está do lado certo do plano da hitbox
-        var ballSurfaceToHitbox = minus(ballSurface, hitbox[0]);
-        var ballSurfaceToHitboxOrientation = vdot(ballSurfaceToHitbox, hitboxNormal);
-        
-        if (ballSurfaceToHitboxOrientation > 0) {
-            // Estamos do lado certo!!
-            // Vamos descobrir se vamos atravessar no próximo frame
+        if (dot(n, ballToHitbox) < 0) {
+            // Se estiver, descobre se vai atravessar
+            var destination = plus(ballClosest, speed);
+            var destToHitbox = minus(h0, destination);
             
-            // Acha a posição da superfície no próximo frame
-            var nextBallSurface = plus(ballSurface, ball.velocity);
-            
-            // Descobre se a superfície está do lado certo do plano da hitbox
-            var nextBallSurfaceToHitbox = minus(nextBallSurface, hitbox[0]);
-            var nextBallSurfaceToHitboxOrientation = vdot(nextBallSurfaceToHitbox, hitboxNormal);
-            
-            if (nextBallSurfaceToHitboxOrientation < 0) {
-                // Vamos atravessar a hitbox
+            if (dot(n, destToHitbox) > 0) {
+                // Se for, ve se essa eh a hitbox mais perto
+                var p = projection(ballToHitbox, n);        // Está na direção da hitbox!
                 
-                // Acha o vetor que leva a superfície da bola à hitbox
-                var distance = easyProjection(ballSurfaceToHitbox, hitboxNormal);
-                
-                // Acha o ponto em que a superfície da bola toca a hitbox
-                var intersection = minus(ballSurface, distance);
-                
-                // Se esse ponto está dentro do triângulo da hitbox
-                if (isInside(hitboxTriangle, intersection)) {
-                    result = [hitboxNormal, hitboxEnergy, mult(-1, distance)];
+                if (normS(p) < normS(resultHitboxDistance)) {
+                    resultHitboxDistance = p;
+                    resultHitboxIndex = i;
                 }
             }
-        }
+        } // Fecha os 3 ifs
         
         
-        
+    } // For das hitboxes
+    
+    
+    
+    
+    // Se nao tivermos achado nenhuma hitbox
+    if (resultHitboxIndex == -1) {
+        this.translate(speed);
     }
-    
-    
-    
-    // O resultado está estruturado assim:
-    // [Índice da hitbox mais perto no hitboxes[], Vetor que leva a bola à hitbox]
-    
-    
-    // Se não vamos bater em ninguém, não há o que retornar
-    if (result == null) {
-        return null;
+    // Se achamos alguma
+    else {
+        this.translate(mult(0.9, resultHitboxDistance));
+        
+        var pa = projection(speed, resultHitboxDistance);
+        
+        this.velocity = plus(speed, mult(-2, pa));
     }
-    
-    // Caso contrário, organizamos as informações e retornamos
-    return result;
+
 }
+
+
+
+
 
 
 
@@ -944,11 +801,6 @@ function isInside( hitboxTriangle, p ) {
 
 
 
-// Retorna a "força da gravidade", ajustada
-//  de acordo com a inclinação da mesa
-function gravity() {
-    return vec4(0.0, -0.05, 0.0, 0.0);
-}
 
 
 
@@ -982,7 +834,9 @@ function updateModelViewMatrix() {
 function updatePerspective() {
     //    projec = perspective(60, canvas.width/canvas.height, 2.0, 0.0001);
     var orthoZoom = 0.5;
+//    projec = mat4();
     projec = ortho(orthoZoom  * -canvas.width/canvas.height, orthoZoom  * canvas.width/canvas.height, orthoZoom  * -1, orthoZoom  * 1, orthoZoom  * -4.1, orthoZoom  * -0.1);
+//    projec = perspective(60, canvas.width/canvas.height, 2.0, 0.0001);
 }
 
 
