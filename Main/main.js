@@ -23,6 +23,7 @@ var mouseRDown = false;
 
 // ===================================================================================================
 /* Objetos */
+var i = 0;
 var vertices = [];
 var points = [];
 var colors = [];
@@ -90,7 +91,7 @@ window.onload = function init()
     oldWidth = screenWidth;
     oldHeight = screenHeight;
     
-    stringNames = ['sphere.obj']; //, 'pimbal3.obj'
+    stringNames = ['ball.vobj', 'pinball5.vobj'];
     readObj(stringNames[0]);
 }
 
@@ -132,21 +133,19 @@ function finishInit() {
     //______________________________________________________________
     // Cria os objetos
     
-    readVertices(objStrings[0]);
-    var ballVertexRange = readFaces(objStrings[0]);
+    var ballVertexRange = readObject(objStrings[0]);
     var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1);
     balls.push(ball);
     
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
     
     
-    // Código para colocar o tabuleiro em jogo:
-//
-//    readVertices(objStrings[1]);
-//    var tableVertexRange = readFaces(objStrings[1]);
-//    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.0, 1.0), 0.1, 90, 0, 0);
-//    objects.push(table);
     
+    // Código para colocar o tabuleiro em jogo:
+
+    var tableVertexRange = readObject(objStrings[1]);
+    var table = newObject(tableVertexRange, vec4(0.0, 0.0, 0.3, 1.0), 0.1, -90, 0, 0);
+    objects.push(table);
     
     var hitbox = [vec4(-1.5, -0.3, -1.5, 1.0),      // Retângulo
                   vec4( 1.5, -0.4, -1.5, 1.0),
@@ -207,8 +206,6 @@ function finishInit() {
     
     
     
-    //__________________________________________________________
-    computeNormals();
     
     
     //__________________________________________________________
@@ -310,29 +307,31 @@ function finishInit() {
 
 /* INICIALIZAÇÃO DE OBJETOS */
 // Lê os vértices de cada peça e os armazena no vetor
-function readVertices(string) {
-    /* Pula as quatro primeiras linhas:
-     
-     # Blender v2.70 (sub 0) OBJ File: ''
-     # www.blender.org
-     mtllib bispo.mtl
-     o Line02
-     */
+function readObject( string ) {
+    console.log("Vertices start");
+    var result;
+    var numberOfVertices;
+    var i = 3;
     
-    i = 0;
-    for (var bla = 0; bla < 4; bla++) {
-        while (string.charAt(i) != '\n') i++;
-        i++;
+    // Checa se o começo do arquivo está certo
+    if (string.charAt(0) != 'f') {
+        console.log("Erro: char era para ser 'f' mas é ", string.charAt(0));
+        console.log("O arquivo lido não é um .vobj");
+        return -1;
     }
     
-    // Para cada linha começada com "v "
-    while (string.charAt(i) == 'v' && string.charAt(i+1) != 'n') {
-        i += 2;                     // Pula o "v "
+    // Acha o número de vértices
+    while(string.charAt(i) != "\n") i++;
+    numberOfVertices = parseInt(string.substr(2, i-1));
+    i ++;                           // Pula o "\n "
+    
+    // Para cada vértice
+    for (var v = 0; v < numberOfVertices; v++) {
         var j;                      // j vai para o fim de cada número
         var vertex = vec4();        // O novo vértice a ser adicionado
         
         // Leitura da coordenada x
-        for (j = i; string.charAt(j) != ' '; j++);            // Acha o fim do número
+        for (j = i; string.charAt(j) != ' '; j++);              // Acha o fim do número
         vertex[0] = parseFloat(string.substr(i, j-1)) / 2;    // Adiciona a coordenada ao novo vértice
         
         // Leitura da coordenada y
@@ -345,140 +344,76 @@ function readVertices(string) {
         for (j = i; string.charAt(j) != '\n'; j++);
         vertex[2] = parseFloat(string.substr(i, j-1)) / 2;
         
-        i = j + 1;      // Vai para a próxima linha
         
-        vertex[3] = 1.0;            // Coordenada homogênea
+        vertex[3] = 1.0;    // Coordenada homogênea
+        
+        i = j + 1;          // Vai para a próxima linha
         
         // Coloca o novo vértice na lista
-        vertices.push( vertex );
-        normalsAux.push( [vec4( 0.0, 0.0, 0.0, 0.0 )] );
+        points.push( vertex );
+        
+        
+        //___________________________________________________________________
+        // Coloca a nova cor na lsta
+        
+        colors.push(vec4(0.2, 0.2, 0.6, 0.0));
     }
     
-}
-
-
-
-
-
-// Lê as faces, ou seja, os grupos de vértices correspondentes
-// a faces e coloca esses grupos em um novo vetor
-function readFaces(string) {
-    // Pula todas as linhas "vn ", que não vai ser usadas por enquanto
-    while (string.charAt(i) == 'v') {
-        while (string.charAt(i) != '\n') i++;
-        i++;
-    }
+    console.log("Vertices end");
     
-    /* Pula mais duas linhas:
-     
-     usemtl wire_255255255
-     s off
-     */
-    while (string.charAt(i) != '\n') i++;
-    i++;
-    while (string.charAt(i) != '\n') i++;
-    i++;
     
-    // Para cada face
-    while (string.charAt(i) == 'f') {
-        i += 2;                 // Pula o "f "
-        var j;                  // Vai para o fim de cada número
-        
-        var number = [];        // Triângulo a ser adicionado (índice dos 3 vértices na lista)
-        
-        // Primeiro vértice
-        for (j = i; string.charAt(j) != '/'; j++);          // Lê até a primeira '/'
-        number[0] = parseInt(string.substr(i, j-1)) - 1;    // Adiciona o número
-        for (i = j; string.charAt(i) != ' '; i++);          // Pula o resto, que por
-                                                            // enquanto não vamos usar
-        i++;
-        
-        // Segundo vértice
-        for (j = i; string.charAt(j) != '/'; j++);
-        number[1] = parseInt(string.substr(i, j-1)) - 1;
-        for (i = j; string.charAt(i) != ' '; i++);
-        i++;
-        
-        // Terceiro vértice
-        for (j = i; string.charAt(j) != '/'; j++);
-        number[2] = parseInt(string.substr(i, j-1)) - 1;
-        for (i = j; string.charAt(i) != '\n'; i++);
-        i++;
-        
-        //__Adiciona os vértices___________________________________________________________
-        
-        
-        // Adiciona os vértices, em ordem, ao vetor de "pontos"
-        for (var k = 0; k < 3; k++) {
-            points.push(vertices[verticesStart + number[k]]);
-        }
-
-        //__Adiciona as normais___________________________________________________________
-        
-        var v1 = minus(vertices[verticesStart + number[1]], vertices[verticesStart + number[0]]);
-        var v2 = minus(vertices[verticesStart + number[1]], vertices[verticesStart + number[2]]);
-        var faceNormal = vcross(v2, v1);
-        faceNormal = normalizev(faceNormal);
-        faceNormal[1] = -faceNormal[1];
-        
-        
-        normalsAux[verticesStart + number[0]].push(faceNormal);
-        normalsAux[verticesStart + number[1]].push(faceNormal);
-        normalsAux[verticesStart + number[2]].push(faceNormal);
-        
-        pointsAux.push(verticesStart + number[0]);
-        pointsAux.push(verticesStart + number[1]);
-        pointsAux.push(verticesStart + number[2]);
-        
-        //__________________________________________________________________________
-        
-        // Adiciona as cores ao vetor de cores
-        for (var k = 0; k < 3; k++) {
-            var c = vertices[verticesStart + number[k]];
-            var col = vec4(c[0]/2, c[0]/2, c[0]/2, 1.0);
-            col = plus(col, vec4(0.7, 0.7, 0.7, 1.0));
-            
-            colors.push(col);
-        }
-        
-    }
     
-    // Configura a peça para saber onde é
-    // o começo e o final dos seus vértices na lista
     var vertexStart = previousPointsSize;
     previousPointsSize = points.length;
     var vertexEnd = points.length;
+
+    result = vec2(vertexStart, vertexEnd - vertexStart);
     
-    verticesStart = vertices.length;
     
-    return vec2(vertexStart, vertexEnd - vertexStart);
+    //________________________________________________________________________________
+    
+    
+    console.log("Normals start")
+    
+    // Checa se o resto do arquivo está certo
+    if (string.charAt(i) != 'n') {
+        console.log("Erro: char era para ser 'n' mas é ", string.charAt(i));
+        console.log("O arquivo lido não é um *.vobj correto.");
+        return -1;
+    }
+    
+    // Para cada normal
+    for (var v = 0; v < numberOfVertices; v++) {
+        var normal = vec4();        // A nova normal a ser adicionada
+        
+        // Leitura da coordenada x
+        for (j = i; string.charAt(j) != ' '; j++);              // Acha o fim do número
+        normal[0] = parseFloat(string.substr(i, j-1)) / 2;    // Adiciona a coordenada à nova normal
+        
+        // Leitura da coordenada y
+        i = j + 1;                                                  // Pula para o número seguinte
+        for (j = i; string.charAt(j) != ' '; j++);
+        normal[1] = parseFloat(string.substr(i, j-1)) / 2;
+        
+        // Leitura da coordenada z
+        i = j + 1;
+        for (j = i; string.charAt(j) != '\n'; j++);
+        normal[2] = parseFloat(string.substr(i, j-1)) / 2;
+        
+        normal[3] = 0.0;     // Coordenada homogênea
+        
+        i = j + 1;          // Vai para a próxima linha
+        
+        // Coloca a nova normal na lista
+        normals.push( normal );
+    }
+    
+    
+    
+    return result;
 }
 
 
-// Pega as normais de cada face e usa para calcular as normais de cada vértice
-function computeNormals () {
-    for (var i = 0; i < normalsAux.length; i++) {
-        
-        var n = vec4(0.0, 0.0, 0.0, 0.0);
-        var j;
-        
-        for (j = 1; j < normalsAux[i].length; j++) {
-            n = plus(n, normalsAux[i][j]);
-        }
-        
-        n = mult(1/(j-1), n);
-        n[3] = 0.0;
-        n = normalizev(n);
-        normalsAux[i][0] = n;
-    }
-    
-    for (var i = 0; i < points.length; i++) {
-        normals.push(normalsAux[pointsAux[i]][0]);
-    }
-    
-    normalsAux = [];
-    pointsAux = [];
-}
 
 
 
@@ -1242,7 +1177,8 @@ function render() {
         obj.updateModelViewMatrix();
         
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
-        gl.uniformMatrix4fv(matrixLoc, false, flatten(times(projec, times(lookat, obj.modelViewMatrix))));
+        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(projec, times(lookat, obj.modelViewMatrix))));
+        gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
         
         // Desenha o objeto
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
