@@ -45,7 +45,6 @@ var verticesStart = 0;
 var previousPointsSize = 0;
 
 
-// Fazer a mesa girar
 // Criar a mola
 // Dar textura para a rotação da bola ser visível
 // Colocar a aceleração com base no tempo
@@ -76,15 +75,20 @@ var boardNormal = vec4(0.0, 0.0, 1.0, 0.0);
 var startingPosition = vec4(0.227, -0.35, 0.25, 1.0);
 
 
+var lookAtAngle = Math.PI/6;
+var lookatRadius = 1.0;
+
 // ===================================================================================================
 /* Gameplay */
 var score = 0;
 var lives = 3;
 
+var crashTime = 0;
+
 // Audio
 var audioContext;
 var audioChannels = [];
-var audioNames = ["click"];
+var audioNames = ["click", "ballLift2", "buzzBell"];
 
 // ===================================================================================================
 /* Main */
@@ -233,6 +237,13 @@ function finishInit() {
     
     
     
+    //__________________________________________________________
+    /* Projeção */
+    updatePerspective();
+    updateLookAt(0);
+    
+    
+    
     
     
     //__________________________________________________________
@@ -293,18 +304,6 @@ function finishInit() {
     modelViewLoc = gl.getUniformLocation(program, "modelView");
     projecLoc = gl.getUniformLocation(program, "projection");
     lightLoc = gl.getUniformLocation(program, "light");
-    
-    // Inicializa a matriz lookat na posição inicial desejada (arbitrária)
-    eye = vec3(0.0, -0.4, 0.7);
-    at = vec3(0.0, 0.0, 0.0);
-    up = vec3(0.0, 1.0, 0.0);
-    lookat = lookAt(eye, at, up);
-    
-    
-    
-    // Inicializa a matriz de projeção
-    updatePerspective();
-    
     
     render();
 };
@@ -673,6 +672,8 @@ function updateScore () {
 //_____________________________________________________
 // Lives
 function loseLife () {
+    playSound("buzzBell");
+    
     lives -= 1;
     updateLives();
 }
@@ -705,10 +706,28 @@ function contractSpring() {
 }
 
 function releaseSpring() {
-    var force = springForce/1000;
-    balls[0].velocity = vec4(0.0, force, 0.0, 0.0);
+    playSound("ballLift2");
+    
+    if (balls[0].position[1] <= -0.34) {
+        if (balls[0].position[0] >= 0.21) {
+            var force = springForce/1000;
+            balls[0].velocity = vec4(0.0, force, 0.0, 0.0);
+        }
+    }
 }
 
+
+
+
+//_____________________________________________________
+// Gravity
+function resetGravity() {
+    gravity = vec4(0.0, -0.0004, 0.0, 0.0);
+}
+
+function updateGravity() {
+    gravity = vec4(0.0, -0.0004 * Math.cos(lookAtAngle), 0.0, 0.0);
+}
 
 
 
@@ -719,19 +738,15 @@ function resetGame() {
     resetLives();
     setScore(0);
     resetGravity();
-    resetPosition();
+    resetBalls();
 }
 
-function resetPosition() {
+function resetBalls() {
     ball = newObjectBall(ballVertexRange, startingPosition, ballSize * 20);
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
     
     balls = [];
     balls.push(ball);
-}
-
-function resetGravity() {
-    gravity = vec4(0.0, -0.0005, 0.0, 0.0);
 }
 
 
@@ -747,13 +762,28 @@ function ballWillCrash (energyCoefficient) {
 }
 
 function ballDidCrash (energyCoefficient) {
-    if (energyCoefficient > 1) {
-        addToScore(100);
+    var time = (new Date()).getTime();
+    var dt = time - crashTime;
+    
+    console.log(dt);
+    
+    if (dt >= 200) {
+        if (energyCoefficient > 1) {
+            addToScore(100);
+        }
+        else {
+            addToScore(3);
+        }
+        
+        
+        
+        crashTime = time;
     }
-    else {
-        addToScore(10);
-    }
+    
+
 }
+
+
 
 //_____________________________________________________
 // Audio
@@ -1000,6 +1030,11 @@ function applyForces () {
         if (normS(p) <= 0.01*0.01) {
             this.velocity = plus(this.velocity, mult(0.001, n));
         }
+        
+        if (normS(this.velocity) >= 0.00001) {
+            ballWillCrash(hitbox[3]);
+            ballDidCrash(hitbox[3]);
+        }
     }
 
     
@@ -1100,6 +1135,29 @@ function updatePerspective() {
     projec = perspective(60, canvas.width/canvas.height, 4.0, 0.0001);
 }
 
+function updateLookAt( inclination ) {
+    // Se está dentro dos limites
+    if ( lookAtAngle + Math.PI * inclination / 180 <= Math.PI/4 &&
+        lookAtAngle + Math.PI * inclination / 180 >= 0 ) {
+    
+        // Acha os novos ângulos
+        lookAtAngle += Math.PI * inclination / 180;
+        var upAngle = Math.Pi/2 + lookAtAngle;
+        
+        // Calcula o zoom adequado
+        var radius = - lookAtAngle / Math.PI + 1.0;
+        
+        // Acha os vetores
+        eye = vec3(0.0, -Math.sin(lookAtAngle) * radius, Math.cos(lookAtAngle) * radius);
+        at = vec3(0.0, 0.0, 0.0);
+        up = vec3(0.0, Math.cos(lookAtAngle), Math.sin(lookAtAngle));
+        
+        // Atualiza a matriz
+        lookat = lookAt(eye, at, up);
+        
+        updateGravity();
+    }
+}
 
 
 
@@ -1220,10 +1278,12 @@ function handleKeys() {
     }
     if (currentlyPressedKeys[38] == true) {
         // Up cursor key
+        updateLookAt(0.1);
         xSpeed -= 1;
     }
     if (currentlyPressedKeys[40] == true) {
         // Down cursor key
+        updateLookAt(-0.1);
         xSpeed += 1;
     }
     if (currentlyPressedKeys[32] == true) {
