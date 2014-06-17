@@ -1,10 +1,47 @@
 <!DOCTYPE html>
 <html>
     <p> </p>
-<p id="Score"><font color="green" size="2" face="BlairMdITC TT">Score: 0</font></p>
-<p id="Lives"><font color="red" size="2" face="BlairMdITC TT">Lives: ❤ ❤ ❤</font></p>
+<div id="slider">
+    <p style="text-indent: 1em;"><font size="2" face="BlairMdITC TT">Ambiente</font>
+    <input class="bar" type="range" id="ARrange" min="0" max="255" value="200" onchange="ARlight = this.value/255"/>
+    <span class="highlight"></span>
+    <input class="bar" type="range" id="AGrange" min="0" max="255" value="200" onchange="AGlight = this.value/255"/>
+    <span class="highlight"></span>
+    <input class="bar" type="range" id="ABrange" min="0" max="255" value="200" onchange="ABlight = this.value/255"/>
+    <span class="highlight"></span>
+</div>
+<div id="slider2">
+    <p style="text-indent: 2.5em;"><font size="2" face="BlairMdITC TT">Difusa     </font>
+    <input class="bar" type="range" id="DRrange" min="0" max="255" value="200" onchange="DRlight = this.value/255"/>
+    <span class="highlight"></span>
+    <input class="bar" type="range" id="DGrange" min="0" max="255" value="200" onchange="DGlight = this.value/255"/>
+    <span class="highlight"></span>
+    <input class="bar" type="range" id="DBrange" min="0" max="255" value="200" onchange="DBlight = this.value/255"/>
+    <span class="highlight"></span>
+</div>
+<div id="slider3">
+    <p><font size="2" face="BlairMdITC TT">Especular</font>
+    <input class="bar" type="range" id="SRrange" min="0" max="255" value="200" onchange="SRlight = this.value/255"/>
+    <span class="highlight"></span>
+    <input class="bar" type="range" id="SGrange" min="0" max="255" value="200" onchange="SGlight = this.value/255"/>
+    <span class="highlight"></span>
+    <input class="bar" type="range" id="SBrange" min="0" max="255" value="200" onchange="SBlight = this.value/255"/>
+    <span class="highlight"></span>
+</div>
+<div id="slider3">
+    <p><font size="2" face="BlairMdITC TT">A, D, S</font>
+    <input class="bar" type="range" id="SRrange" min="0" max="100" value="100" onchange="KA = this.value/100"/>
+    <span class="highlight"></span>
+    <input class="bar" type="range" id="SGrange" min="0" max="100" value="100" onchange="KD = this.value/100"/>
+    <span class="highlight"></span>
+    <input class="bar" type="range" id="SBrange" min="0" max="100" value="100" onchange="KS = this.value/100"/>
+    <span class="highlight"></span>
+</div>
+<p id="Commands"><font color="Blue" size="2" face="BlairMdITC TT">X & Y: Flippers; R = Reset; Space = Launch; Arrows = Turn table; A = Toggle Audio; P = Play/Pause</font></p>
+<p id="Score"><font color="green" size="2" face="BlairMdITC TT">Score: 0</font><font color="gold" size="2" face="BlairMdITC TT">High Score: 0</font></p>
+<p id="Lives"><font color="red" size="2" face="BlairMdITC TT">Lives: O O O</font></p>
     <head>
-        
+
         <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
             <title>Pinball</title>
             
@@ -18,8 +55,10 @@
                 varying vec4 normal;
                 uniform mat4 modelView;
                 uniform mat4 projection;
-                uniform vec3 light;
-
+                uniform vec4 aLight;
+                uniform vec4 dLight;
+                uniform vec4 sLight;
+                uniform vec3 constants;
 
                 vec4 product(vec4 a, vec4 b) {
                     return vec4(a[0] * b[0], a[1] * b[1], a[2] * b[2], a[3] * b[3]);
@@ -34,8 +73,6 @@
                     vec4 newPosition = modelView * vPosition;
                     vec4 newNormal = modelView * vNormal;
                     
-                    vec4 lightColor = vec4(1.0, 1.0, 0.8, 0.0);
-                    
                     vec3 n = normalize(newNormal.xyz);
                     
                     if (n[0] == 0.0 && n[1] == 0.0 && n[2] == 0.0) {
@@ -46,14 +83,13 @@
                     vec3 c = -normalize((newPosition).xyz);
                     vec3 h = normalize(l+c);
                     
-                    float ka = light[0];
-                    float kd = light[1] * max(dot(l, n), 0.0);
-                    float ks = light[2] * pow(max(dot(n, h), 0.0), shininess);
+                    float ka = 1.0;
+                    float kd = max(dot(l, n), 0.0);
+                    float ks = pow(max(dot(n, h), 0.0), shininess);
                     
-                    vec4 p = product(lightColor, vColor);
-                    ambient = ka * p;
-                    diffuse = kd * p;
-                    specular = max(ks * p, 0.0);
+                    ambient = ka * constants[0] * product(aLight, vColor);
+                    diffuse = kd * constants[1] * product(dLight, vColor);
+                    specular = max(ks * constants[2] * product(sLight, vColor), 0.0);
                     
                     color = vec4((ambient + diffuse + specular).xyz, 1.0);
 

@@ -45,12 +45,19 @@ var verticesStart = 0;
 var previousPointsSize = 0;
 
 
+// Mais bolas
 // Criar a mola
 // Dar textura para a rotação da bola ser visível
 // Colocar a aceleração com base no tempo
 // Colocar a mola com o tempo
 // Arrumar os pontos
 // Arrumar os sons
+// Arrumar comandos
+
+
+// SKYBOX
+// TEXTURA NA MESA
+
 
 // ===================================================================================================
 /* Física */
@@ -81,14 +88,34 @@ var lookatRadius = 1.0;
 // ===================================================================================================
 /* Gameplay */
 var score = 0;
+var highScore = 0;
 var lives = 3;
 
 var crashTime = 0;
 
+var play = true;
+
 // Audio
+var soundOn = true;
+
 var audioContext;
 var audioChannels = [];
 var audioNames = ["click", "ballLift2", "buzzBell"];
+
+
+var ARlight = 0.7843;
+var AGlight = 0.7843;
+var ABlight = 0.7843;
+var DRlight = 0.7843;
+var DGlight = 0.7843;
+var DBlight = 0.7843;
+var SRlight = 0.7843;
+var SGlight = 0.7843;
+var SBlight = 0.7843;
+
+var KA = 1;
+var KD = 1;
+var KS = 1;
 
 // ===================================================================================================
 /* Main */
@@ -138,6 +165,8 @@ var readObjCallback = function(obj) {
 };
 
 
+
+
 function finishInit() {
     i = 0;
     
@@ -150,6 +179,9 @@ function finishInit() {
     document.onkeydown = handleKeyDown;
     document.onkeyup = handleKeyUp;
     
+    
+    
+
     
     
     //______________________________________________________________
@@ -303,7 +335,10 @@ function finishInit() {
     // Pega as variáveis uniformes dos shaders
     modelViewLoc = gl.getUniformLocation(program, "modelView");
     projecLoc = gl.getUniformLocation(program, "projection");
-    lightLoc = gl.getUniformLocation(program, "light");
+    aLightLoc = gl.getUniformLocation(program, "aLight");
+    dLightLoc = gl.getUniformLocation(program, "dLight");
+    sLightLoc = gl.getUniformLocation(program, "sLight");
+    constsLoc = gl.getUniformLocation(program, "constants");
     
     render();
 };
@@ -665,7 +700,11 @@ function setScore ( value ) {
 
 
 function updateScore () {
-    document.getElementById("Score").innerHTML = "<font color=\"green\" size=\"2\" face=\"BlairMdITC TT\">Score: " + score + "</font>";
+    if (score > highScore) highScore = score;
+    
+    document.getElementById("Score").innerHTML = "\
+    <font color=\"green\" size=\"2\" face=\"BlairMdITC TT\">Score: " + score + "</font>\
+    <font color=\"gold\" size=\"2\" face=\"BlairMdITC TT\">High Score: " + highScore + "</font>";
 }
 
 
@@ -680,15 +719,16 @@ function loseLife () {
 
 function resetLives () {
     lives = 3;
+    setScore(0);
     updateLives();
 }
 
 function updateLives () {
     var livesString = "";
     for (var i = 0; i < lives;  i++)
-        livesString = livesString + "❤ ";
+        livesString = livesString + "O ";
     for (; i < 3; i++)
-        livesString = livesString + "♡ ";
+        livesString = livesString + "X ";
     
     document.getElementById("Lives").innerHTML = "<font color=\"red\" size=\"2\" face=\"BlairMdITC TT\">Lives: " + livesString + "</font>";
 }
@@ -708,10 +748,12 @@ function contractSpring() {
 function releaseSpring() {
     playSound("ballLift2");
     
-    if (balls[0].position[1] <= -0.34) {
-        if (balls[0].position[0] >= 0.21) {
-            var force = springForce/1000;
-            balls[0].velocity = vec4(0.0, force, 0.0, 0.0);
+    if (balls[0].position[0] >= 0.21) {
+        if (balls[0].position[1] <= -0.34) {
+            if (play == true) {
+                var force = springForce/1000;
+                balls[0].velocity = vec4(0.0, force, 0.0, 0.0);
+            }
         }
     }
 }
@@ -821,14 +863,19 @@ function finishLoadingAudio ( bufferList ) {
 }
 
 function playSound (id ) {
-    // Cria uma fonte para tocar o som
-    var source = audioContext.createBufferSource();
-    // Pega o arquivo
-    source.buffer = audioChannels[ id ];
-    // Toca o som
-    source.connect(audioContext.destination);
-    source.start(0);
+    if (soundOn == true && play == true) {
+        // Cria uma fonte para tocar o som
+        var source = audioContext.createBufferSource();
+        // Pega o arquivo
+        source.buffer = audioChannels[ id ];
+        // Toca o som
+        source.connect(audioContext.destination);
+        source.start(0);
+    }
 }
+
+
+
 
 
 
@@ -895,16 +942,6 @@ BufferLoader.prototype.load = function() {
 /* Física */
 
 
-
-
-
-
-//var hitbox = [vec2(0.0, -0.1),      // Coordenadas
-//              vec2(1.0, -0.1),
-//              
-//              vec4(0.0, 1.0, 0.0, 0.0),      // Normal (unitária)
-//              
-//              0.0 ];                        // Aumento de energia
 
 // Aplica as forças acumuladas a um objeto
 function applyForces () {
@@ -1311,6 +1348,22 @@ function handleKeyUp(event) {
     else if (event.keyCode == 82) {     // R
         resetGame();
     }
+    else if (event.keyCode == 65) {     // A
+        if (soundOn == true) {
+            soundOn = false;
+        }
+        else {
+            soundOn = true;
+        }
+    }
+    else if (event.keyCode == 80) {     // P
+        if (play == true) {
+            play = false;
+        }
+        else {
+            play = true;
+        }
+    }
 }
 
 
@@ -1344,7 +1397,9 @@ function render() {
         var obj = balls[i];
         
         // Move a bola
-        obj.applyForces();
+        if (play == true) {
+            obj.applyForces();
+        }
         obj.checkLoseLife();
         
         // Atualiza as informações da bola
@@ -1353,7 +1408,10 @@ function render() {
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
         gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
         gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
-        gl.uniform3f(lightLoc, 0.7, 1.0, 1.0);
+        gl.uniform4f(aLightLoc, ARlight, AGlight, ABlight, 1.0);
+        gl.uniform4f(dLightLoc, DRlight, DGlight, DBlight, 1.0);
+        gl.uniform4f(sLightLoc, SRlight, SGlight, SBlight, 1.0);
+        gl.uniform3f(constsLoc, KA, KD, KS);
         
         // Desenha a bola
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
@@ -1369,12 +1427,14 @@ function render() {
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
         gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
         gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
-        gl.uniform3f(lightLoc, 0.6, 1.0, 1.0);
+        gl.uniform4f(aLightLoc, ARlight, AGlight, ABlight, 1.0);
+        gl.uniform4f(dLightLoc, DRlight, DGlight, DBlight, 1.0);
+        gl.uniform4f(sLightLoc, SRlight, SGlight, SBlight, 1.0);
+        gl.uniform3f(constsLoc, KA, KD, KS);
         
         // Desenha o objeto
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
     }
-    
     
     requestAnimFrame(render);
 }
