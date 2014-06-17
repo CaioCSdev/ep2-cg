@@ -53,7 +53,7 @@ function normalizev(p) {
 
 // Produto vetorial 3D
 function vcross(p, v) {
-    return vec3(p[1] * v[2] - p[2] * v[1], - p[2] * v[0] + p[0] * v[2], p[0] * v[1] - p[1] * v[0]);
+    return vec3(p[1] * v[2] - p[2] * v[1], p[2] * v[0] - p[0] * v[2], p[0] * v[1] - p[1] * v[0]);
 }
 
 // Produto interno 3D

@@ -33,6 +33,7 @@ var pointsAux = [];
 
 var objects = [];
 var balls = [];
+var table;
 
 var index = 0;
 var stringNames = [];
@@ -141,7 +142,7 @@ function finishInit() {
     // Cria os objetos
     
     var ballVertexRange = readObject(objStrings[0]);
-    var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.1, 0.25, 1.0), 0.05);
+    var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.0, 0.25, 1.0), ballSize * 20);
     balls.push(ball);
     
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
@@ -151,7 +152,7 @@ function finishInit() {
     // Código para colocar o tabuleiro em jogo:
 
     var tableVertexRange = readObject(objStrings[1]);
-    var table = newObject(tableVertexRange, vec4(0.07, 0.0, 0.23, 1.0), 0.1, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    table = newObject(tableVertexRange, vec4(0.07, 0.0, 0.23, 1.0), 0.1, vec4(1.0, 0.0, 0.0, 0.0), 90);
     table.rotate(vec4(0.0, 0.0, 1.0, 0.0), -90);
     table.deform(vec4(1.0, 0.3, 1.0, 0.0));
     objects.push(table);
@@ -164,29 +165,30 @@ function finishInit() {
     
     //__________________________________________________________
     /* Hitboxes */
-    var hitbox = [vec2(-1.0, -0.15),      // Coordenadas
-                  vec2(1.0, -0.0),
-                  
-                  vec4(-0.14, 0.9, 0.0, 0.0),      // Normal (unitária)
-                  
-                  0.9 ];                        // Aumento de energia
+//        newHitbox(vec2(-1.0, 0.1), vec2(1.0, -0.2), 0.9, 0);
+    //    newHitbox(vec2(0.0, 0.0), vec2(1.0, -0.15), 0.9, 0);
     
-    hitboxes.push(hitbox);
+    // Não sai do tabuleiro
+//    newHitbox(vec2(0.0, 0.0), vec2(1.0, 0.0), 0.9, 0);
+//    newHitbox(vec2(0.0, 1.0), vec2(1.0, 1.0), 0.9, 1);
+//
+//    newHitbox(vec2(-1.0, 0.0), vec2(-1.0, 1.0), 0.9, 1);
+//    newHitbox(vec2(1.0, 0.0), vec2(1.0, 1.0), 0.9, 0);
+//    newHitbox(vec2(1.15, 0.0), vec2(1.15, 1.0), 0.9, 0);
     
-    var hitbox2 = [vec2(-1.0, -0.0),      // Coordenadas
-                  vec2(1.0, -0.15),
-                  
-                  vec4(0.14, 0.9, 0.0, 0.0),      // Normal (unitária)
-                  
-                  0.9 ];                        // Aumento de energia
+//    newHitbox(vec2(-1.0, 0.0), vec2(1.0, 1.0), 0.9, 0);
     
-    hitboxes.push(hitbox2);
+//    var h0 = vec4(hitbox[0][0] * 0.171 + 0.036, hitbox[0][1] * 0.608 - 0.355, this.position[2], 0.0);
+//    var h1 = vec4(hitbox[1][0] * 0.171 + 0.036, hitbox[1][1] * 0.608 - 0.355, this.position[2], 0.0);
+
+    newHitbox(vec2(-0.135, -0.355), vec2(0.207, -0.355), 0.9, 0);       // Chão
+    newHitbox(vec2(-0.135, -0.355), vec2(-0.135, 0.253), 0.9, 1);       // Esquerda
+    newHitbox(vec2(0.207, -0.355), vec2(0.207, 0.253), 0.9, 0);        // Direita
+    newHitbox(vec2(0.207, 0.253), vec2(-0.135, 0.253), 0.9, 0);        // Teto
+
+    newHitbox(vec2(0.207, 0.253), vec2(-0.135, -0.355), 0.9, 1);        // Diagnoal secundária
     
-    
-    
-    
-    
-    
+//    newHitbox(vec2(0.3612, 0.0369), vec2(0.7096, 0.2103), 0.9, 0);
     
     
     //__________________________________________________________
@@ -246,10 +248,10 @@ function finishInit() {
     // Pega as variáveis uniformes dos shaders
     modelViewLoc = gl.getUniformLocation(program, "modelView");
     projecLoc = gl.getUniformLocation(program, "projection");
-    
+    lightLoc = gl.getUniformLocation(program, "light");
     
     // Inicializa a matriz lookat na posição inicial desejada (arbitrária)
-    eye = vec3(0.0, -0.5, 0.6);
+    eye = vec3(0.0, -0.4, 0.7);
     at = vec3(0.0, 0.0, 0.0);
     up = vec3(0.0, 1.0, 0.0);
     lookat = lookAt(eye, at, up);
@@ -264,6 +266,25 @@ function finishInit() {
 };
 
 
+function normalForHitbox(v1, v2) {
+    var a = vec4(v1[0], v1[1], 0.0, 0.0);
+    var b = vec4(v2[0], v2[1], 0.0, 0.0);
+    var v = minus(a, b);
+    var n = cross(v, boardNormal);
+    normalize(n);
+    n = vec4(n[0], n[1], n[2], 0.0);
+    
+    return n;
+}
+
+function newHitbox(v1, v2, e, direction) {
+    var n = normalForHitbox(v1, v2);
+    if (direction == 1) n = mult(-1, n);
+    
+    var hitbox = [v1, v2, n, e];
+    
+    hitboxes.push(hitbox);
+}
 
 
 
@@ -336,7 +357,7 @@ function readObject( string ) {
         //___________________________________________________________________
         // Coloca a nova cor na lsta
         
-        colors.push(vec4(0.2, 0.2, 0.6, 0.0));
+        colors.push(vec4(0.2, 0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0));
     }
     
     
@@ -725,8 +746,10 @@ function applyForces () {
         // Pega as informações da hitbox
         var hitbox = hitboxes[i];
         var n = hitbox[2];
-        var h0 = vec4(hitbox[0][0], hitbox[0][1], 0.0, 0.0);
-        var h1 = vec4(hitbox[1][0], hitbox[1][1], 0.0, 0.0);
+    
+        
+        var h0 = vec4(hitbox[0][0], hitbox[0][1], this.position[2], 0.0);
+        var h1 = vec4(hitbox[1][0], hitbox[1][1], this.position[2], 0.0);
         
         
         // Descobre se a bola está na frente da hitbox
@@ -734,17 +757,57 @@ function applyForces () {
         var ballToHitbox = minus(h0, ballClosest);
         
         if (dot(n, ballToHitbox) < 0) {
-            // Se estiver, descobre se vai atravessar
+            // Se estiver, descobre se vai atravessar o plano
             var destination = plus(ballClosest, speed);
             var destToHitbox = minus(h0, destination);
             
             if (dot(n, destToHitbox) > 0) {
-                // Se for, ve se essa eh a hitbox mais perto
-                var p = projection(ballToHitbox, n);        // Está na direção da hitbox!
+                // Se for, vê se está nos limites
                 
-                if (normS(p) < normS(resultHitboxDistance)) {
-                    resultHitboxDistance = p;
-                    resultHitboxIndex = i;
+                var p = projection(ballToHitbox, n);        // Está na direção da hitbox!
+                var newPosition = plus(ballClosest, p);
+                
+                var HorTest = false;
+                var VerTest = false;
+                var h, H;
+                var v, V;
+                if (h0[0] != h1[0]) {
+                    if (h0[0] < h1[0]) {
+                        h = h0[0];
+                        H = h1[0];
+                    }
+                    else {
+                        h = h1[0];
+                        H = h0[0];
+                    }
+                    
+                    if (newPosition[0] > h && newPosition[0] < H) {
+                        HorTest = true;
+                    }
+                }   // Teste horizontal
+                if (h0[1] != h1[1]) {
+                    if (h0[1] < h1[1]) {
+                        v = h0[1];
+                        V = h1[1];
+                    }
+                    else {
+                        v = h1[1];
+                        V = h0[1];
+                    }
+                    
+                    if (newPosition[1] > v && newPosition[1] < V) {
+                        VerTest = true;
+                    }
+                }   // Teste vertical
+                
+                if (HorTest || VerTest) {
+                    // Se for, ve se essa eh a hitbox mais perto
+                    
+                    
+                    if (normS(p) < normS(resultHitboxDistance)) {
+                        resultHitboxDistance = p;
+                        resultHitboxIndex = i;
+                    }
                 }
             }
         } // Fecha os 3 ifs
@@ -1057,6 +1120,7 @@ function render() {
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
         gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
         gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
+        gl.uniform3f(lightLoc, 0.7, 1.0, 1.0);
         
         // Desenha a bola
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
@@ -1072,6 +1136,7 @@ function render() {
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
         gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
         gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
+        gl.uniform3f(lightLoc, 0.6, 1.0, 1.0);
         
         // Desenha o objeto
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
