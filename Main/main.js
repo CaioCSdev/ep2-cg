@@ -34,6 +34,7 @@ var pointsAux = [];
 var objects = [];
 var balls = [];
 var table;
+var ball;
 
 var index = 0;
 var stringNames = [];
@@ -43,13 +44,16 @@ var previousPointsSize = 0;
 
 
 
-
+// Fazer a bola girar
+// Dar vidas
+// Fazer o jogador perder vidas
+// Criar a mola
 
 // ===================================================================================================
 /* Física */
-var gravity = vec4(0.0, -0.001, 0.0, 0.0);
+var gravity = vec4(0.0, -0.0005, 0.0, 0.0);
 
-var ballSize = 0.001;
+var ballSize = 0.0013;
 var ballCircumference = 2 * Math.PI * ballSize;
 
 
@@ -142,7 +146,7 @@ function finishInit() {
     // Cria os objetos
     
     var ballVertexRange = readObject(objStrings[0]);
-    var ball = newObjectBall(ballVertexRange, vec4(0.0, 0.0, 0.25, 1.0), ballSize * 20);
+    ball = newObjectBall(ballVertexRange, vec4(0.0, 0.0, 0.25, 1.0), ballSize * 20);
     balls.push(ball);
     
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
@@ -165,31 +169,49 @@ function finishInit() {
     
     //__________________________________________________________
     /* Hitboxes */
-//        newHitbox(vec2(-1.0, 0.1), vec2(1.0, -0.2), 0.9, 0);
-    //    newHitbox(vec2(0.0, 0.0), vec2(1.0, -0.15), 0.9, 0);
-    
-    // Não sai do tabuleiro
-//    newHitbox(vec2(0.0, 0.0), vec2(1.0, 0.0), 0.9, 0);
-//    newHitbox(vec2(0.0, 1.0), vec2(1.0, 1.0), 0.9, 1);
-//
-//    newHitbox(vec2(-1.0, 0.0), vec2(-1.0, 1.0), 0.9, 1);
-//    newHitbox(vec2(1.0, 0.0), vec2(1.0, 1.0), 0.9, 0);
-//    newHitbox(vec2(1.15, 0.0), vec2(1.15, 1.0), 0.9, 0);
-    
-//    newHitbox(vec2(-1.0, 0.0), vec2(1.0, 1.0), 0.9, 0);
-    
-//    var h0 = vec4(hitbox[0][0] * 0.171 + 0.036, hitbox[0][1] * 0.608 - 0.355, this.position[2], 0.0);
-//    var h1 = vec4(hitbox[1][0] * 0.171 + 0.036, hitbox[1][1] * 0.608 - 0.355, this.position[2], 0.0);
 
-    newHitbox(vec2(-0.135, -0.355), vec2(0.207, -0.355), 0.9, 0);       // Chão
-    newHitbox(vec2(-0.135, -0.355), vec2(-0.135, 0.253), 0.9, 1);       // Esquerda
-    newHitbox(vec2(0.207, -0.355), vec2(0.207, 0.253), 0.9, 0);        // Direita
-    newHitbox(vec2(0.207, 0.253), vec2(-0.135, 0.253), 0.9, 0);        // Teto
+    newHitbox(vec2(-1.2, 0.0), vec2(1.2, 0.0), 0.2, 0);       // Chão
+    newHitbox(vec2(-1.0, -0.2), vec2(-1.0, 1.2), 0.9, 1);       // Esquerda
+    newHitbox(vec2(1.1493, -0.2), vec2(1.1493, 1.2), 0.4, 0);        // Direita
+    newHitbox(vec2(1.2, 1.0), vec2(-1.2, 1.0), 0.9, 0);        // Teto
+    
+    // bumper direito
+    newHitbox(vec2(0.3506, 0.0369), vec2(0.7922, 0.2398), 0.9, 0);  //  /       esq
+    newHitbox(vec2(0.7142, 0.1734), vec2(0.7142, 0.3210), 0.9, 0);  //  |
+    newHitbox(vec2(0.7142, 0.3210), vec2(0.7922, 0.3210), 0.9, 0);  //  _
+    newHitbox(vec2(0.7922, 0.3210), vec2(0.7922, 0.2121), 0.9, 0);  //  |
+    newHitbox(vec2(0.7922, 0.2121), vec2(0.4480, 0.0369), 0.9, 0);  //  /
 
-    newHitbox(vec2(0.207, 0.253), vec2(-0.135, -0.355), 0.9, 1);        // Diagnoal secundária
     
-//    newHitbox(vec2(0.3612, 0.0369), vec2(0.7096, 0.2103), 0.9, 0);
+    // bumper esquerdo
+    newHitbox(vec2(-0.3506, 0.0369), vec2(-0.7792, 0.2398), 0.9, 1);  //  \       dir
+    newHitbox(vec2(-0.7012, 0.1734), vec2(-0.7012, 0.3210), 0.9, 1);  //  |
+    newHitbox(vec2(-0.7012, 0.3210), vec2(-0.7792, 0.3210), 0.9, 1);  //  _
+    newHitbox(vec2(-0.7792, 0.3210), vec2(-0.7792, 0.2121), 0.9, 1);  //  |
+    newHitbox(vec2(-0.7792, 0.2121), vec2(-0.4280, 0.0369), 0.9, 1);  //  |
     
+    
+    // Tri direito
+    newHitbox(vec2(1.0714, 0.2859), vec2(0.7142, 0.4261), 0.9, 0);  //  \ dir
+    newHitbox(vec2(0.7142, 0.4261), vec2(1.0714, 0.5996), 0.9, 0);  //  /
+    
+    
+    // Tri esquerdo
+    newHitbox(vec2(-1.0714, 0.2416), vec2(-0.7012, 0.4261), 0.9, 1);  //  / dir
+    newHitbox(vec2(-0.7012, 0.4261), vec2(-1.0714, 0.6088), 0.9, 1);  //  \ dir
+    
+    // Corner esquerdo
+    newHitbox(vec2(-1.0714, 0.7693), vec2(-0.5064, 1.0202), 0.9, 1);  //  / dir
+    
+    // Corner direito
+    newHitbox(vec2(0.6928, 1.0202), vec2(1.2207, 0.7693), 0.9, 1);  //  / dir
+    
+    // Rod
+    newHitbox(vec2(1.0000, -0.2000), vec2(1.0000, 0.8100), 0.9, 0);  //  | esq
+    newHitbox(vec2(1.0714, 0.7435), vec2(0.8571, 0.8487), 0.9, 0);  //  \ esq
+    newHitbox(vec2(0.8571, 0.8487), vec2(0.8571, 0.8856), 0.9, 0);  //  |
+    newHitbox(vec2(0.8571, 0.8856), vec2(1.0714, 0.7804), 0.9, 0);  //  \ dir
+    newHitbox(vec2(1.0714, 0.7804), vec2(1.0714, -0.2000), 0.4, 0);  //  | dir
     
     //__________________________________________________________
     /* Configuração do WebGL */
@@ -267,8 +289,8 @@ function finishInit() {
 
 
 function normalForHitbox(v1, v2) {
-    var a = vec4(v1[0], v1[1], 0.0, 0.0);
-    var b = vec4(v2[0], v2[1], 0.0, 0.0);
+    var a = vec4(v1[0] * 0.171, v1[1] * 0.608, 0.0, 0.0);
+    var b = vec4(v2[0] * 0.171, v2[1] * 0.608, 0.0, 0.0);
     var v = minus(a, b);
     var n = cross(v, boardNormal);
     normalize(n);
@@ -526,6 +548,8 @@ function newObjectBall ( vertexRange, position, size, vector, angle ) {
 
 /* Funções de transformação geométrica dos objetos */
 
+
+
 // Translação
 function translateObj(vector) {
     // Atualiza a posição
@@ -732,6 +756,11 @@ BufferLoader.prototype.load = function() {
 
 // Aplica as forças acumuladas a um objeto
 function applyForces () {
+    if (mouseDown) {
+        this.velocity = vec4(0.0, 0.0, 0.0, 0.0);
+        return 0;
+    }
+    
     
     this.velocity = plus(this.velocity, gravity);
     
@@ -747,9 +776,8 @@ function applyForces () {
         var hitbox = hitboxes[i];
         var n = hitbox[2];
     
-        
-        var h0 = vec4(hitbox[0][0], hitbox[0][1], this.position[2], 0.0);
-        var h1 = vec4(hitbox[1][0], hitbox[1][1], this.position[2], 0.0);
+        var h0 = vec4(hitbox[0][0] * 0.171 + 0.036, hitbox[0][1] * 0.608 - 0.355, this.position[2], 0.0);
+        var h1 = vec4(hitbox[1][0] * 0.171 + 0.036, hitbox[1][1] * 0.608 - 0.355, this.position[2], 0.0);
         
         
         // Descobre se a bola está na frente da hitbox
@@ -1033,7 +1061,12 @@ function handleMouseMove(event) {
     var deltaX = newX - lastMouseX;
     var deltaY = newY - lastMouseY;
     
-    
+    if (mouseDown) {
+        deltaX /= screenWidth;
+        deltaY /= screenHeight;
+        
+        ball.translate(vec4(deltaX, -deltaY, 0.0, 0.0));
+    }
     /* DO STUFF */
     
     // Atualiza a posição "anterior" do mouse
