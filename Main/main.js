@@ -34,7 +34,9 @@ var pointsAux = [];
 var objects = [];
 var balls = [];
 var table;
-var ball;
+
+var ballVertexRange;
+var tableVertexRange;
 
 var index = 0;
 var stringNames = [];
@@ -43,11 +45,13 @@ var verticesStart = 0;
 var previousPointsSize = 0;
 
 
-
-// Fazer a bola girar
-// Dar vidas
-// Fazer o jogador perder vidas
+// Fazer a mesa girar
 // Criar a mola
+// Dar textura para a rotação da bola ser visível
+// Colocar a aceleração com base no tempo
+// Colocar a mola com o tempo
+// Arrumar os pontos
+// Arrumar os sons
 
 // ===================================================================================================
 /* Física */
@@ -56,6 +60,7 @@ var gravity = vec4(0.0, -0.0005, 0.0, 0.0);
 var ballSize = 0.0013;
 var ballCircumference = 2 * Math.PI * ballSize;
 
+var springForce = 0;
 
 
 // ===================================================================================================
@@ -68,12 +73,13 @@ var hitboxes = [];
 // ===================================================================================================
 /* Tabuleiro */
 var boardNormal = vec4(0.0, 0.0, 1.0, 0.0);
-
+var startingPosition = vec4(0.227, -0.35, 0.25, 1.0);
 
 
 // ===================================================================================================
 /* Gameplay */
 var score = 0;
+var lives = 3;
 
 // Audio
 var audioContext;
@@ -145,17 +151,16 @@ function finishInit() {
     //______________________________________________________________
     // Cria os objetos
     
-    var ballVertexRange = readObject(objStrings[0]);
-    ball = newObjectBall(ballVertexRange, vec4(0.0, 0.0, 0.25, 1.0), ballSize * 20);
+    
+    // Bola
+    ballVertexRange = readObject(objStrings[0]);
+    ball = newObjectBall(ballVertexRange, startingPosition, ballSize * 20);
     balls.push(ball);
     
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
     
-    
-    
-    // Código para colocar o tabuleiro em jogo:
-
-    var tableVertexRange = readObject(objStrings[1]);
+    // Tabuleiro
+    tableVertexRange = readObject(objStrings[1]);
     table = newObject(tableVertexRange, vec4(0.07, 0.0, 0.23, 1.0), 0.1, vec4(1.0, 0.0, 0.0, 0.0), 90);
     table.rotate(vec4(0.0, 0.0, 1.0, 0.0), -90);
     table.deform(vec4(1.0, 0.3, 1.0, 0.0));
@@ -212,6 +217,23 @@ function finishInit() {
     newHitbox(vec2(0.8571, 0.8487), vec2(0.8571, 0.8856), 0.9, 0);  //  |
     newHitbox(vec2(0.8571, 0.8856), vec2(1.0714, 0.7804), 0.9, 0);  //  \ dir
     newHitbox(vec2(1.0714, 0.7804), vec2(1.0714, -0.2000), 0.4, 0);  //  | dir
+
+    
+    
+    
+    
+    
+    
+    
+    //__________________________________________________________
+    /* Gameplay */
+    resetLives();
+    setScore(0);
+    
+    
+    
+    
+    
     
     //__________________________________________________________
     /* Configuração do WebGL */
@@ -528,6 +550,8 @@ function newObjectBall ( vertexRange, position, size, vector, angle ) {
                
                //==============================================
                
+               checkLoseLife: checkLoseLife,
+               
                // Variáveis e métodos da física da bola
                
                // Tempo desde a última atualização
@@ -543,6 +567,35 @@ function newObjectBall ( vertexRange, position, size, vector, angle ) {
     
     return obj;
 }
+
+
+
+function checkLoseLife() {
+    if (this.position[1] <= -0.353) {     // Essa bola passou!
+        if (this.position[0] <= 0.21) {
+            
+            if (balls.length == 1) {       // Perdeu uma vida!
+                if (lives != 0)             // Se ainda tinha vidas, só perde uma
+                    loseLife();
+                else                        // Se não o jogo começa de novo
+                    resetLives();
+                
+                // Leva a bola para a posição inicial
+                var desloc = minus(startingPosition, this.position);
+                this.translate(desloc);
+                this.velocity = vec4(0.0, 0.0, 0.0, 0.0);
+            }
+            else {                      // Se tinha várias bolas, só tira essa do vetor
+                var index = balls.indexOf(this);
+                balls.splice(index, 1);
+            }
+        }
+    }
+}
+
+
+
+
 
 
 
@@ -615,6 +668,75 @@ function setScore ( value ) {
 function updateScore () {
     document.getElementById("Score").innerHTML = "<font color=\"green\" size=\"2\" face=\"BlairMdITC TT\">Score: " + score + "</font>";
 }
+
+
+//_____________________________________________________
+// Lives
+function loseLife () {
+    lives -= 1;
+    updateLives();
+}
+
+function resetLives () {
+    lives = 3;
+    updateLives();
+}
+
+function updateLives () {
+    var livesString = "";
+    for (var i = 0; i < lives;  i++)
+        livesString = livesString + "❤ ";
+    for (; i < 3; i++)
+        livesString = livesString + "♡ ";
+    
+    document.getElementById("Lives").innerHTML = "<font color=\"red\" size=\"2\" face=\"BlairMdITC TT\">Lives: " + livesString + "</font>";
+}
+
+
+
+
+
+//_____________________________________________________
+// Spring
+function contractSpring() {
+    if (springForce <= 100) {
+        springForce += 0.5;
+    }
+}
+
+function releaseSpring() {
+    var force = springForce/1000;
+    balls[0].velocity = vec4(0.0, force, 0.0, 0.0);
+}
+
+
+
+
+//_____________________________________________________
+// Reset
+function resetGame() {
+    console.log("RESET");
+    resetLives();
+    setScore(0);
+    resetGravity();
+    resetPosition();
+}
+
+function resetPosition() {
+    ball = newObjectBall(ballVertexRange, startingPosition, ballSize * 20);
+    ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
+    
+    balls = [];
+    balls.push(ball);
+}
+
+function resetGravity() {
+    gravity = vec4(0.0, -0.0005, 0.0, 0.0);
+}
+
+
+
+
 
 
 //_____________________________________________________
@@ -858,7 +980,7 @@ function applyForces () {
     if (resultHitboxIndex == -1) {
         this.translate(speed);
     }
-    else if (resultHitboxIndex == -2) {
+    else if (resultHitboxIndex == -2) {     // Se não tem nenhuma mas está perto demais de alguém
         for (var i = 0; i < resultTooCloseDistances.length; i++) {
             this.translate(mult(0.001, resultTooCloseDistances[i]));
         }
@@ -880,6 +1002,15 @@ function applyForces () {
         }
     }
 
+    
+    
+    // _____________________________________________________________
+    /* Rotação da bola */
+    
+    var axis = cross(boardNormal, this.velocity);
+    var angle = 90 * norm(this.velocity) / ballCircumference;
+    this.rotate(axis, angle)
+    
 }
 
 
@@ -1095,7 +1226,9 @@ function handleKeys() {
         // Down cursor key
         xSpeed += 1;
     }
-    
+    if (currentlyPressedKeys[32] == true) {
+        contractSpring();
+    }
     
     
     if (xSpeed != 0 || ySpeed != 0) {
@@ -1112,6 +1245,12 @@ function handleKeyDown(event) {
 
 function handleKeyUp(event) {
     currentlyPressedKeys[event.keyCode] = false;
+    if (event.keyCode == 32) {          // Space
+        releaseSpring();
+    }
+    else if (event.keyCode == 82) {     // R
+        resetGame();
+    }
 }
 
 
@@ -1146,6 +1285,7 @@ function render() {
         
         // Move a bola
         obj.applyForces();
+        obj.checkLoseLife();
         
         // Atualiza as informações da bola
         obj.updateModelViewMatrix();
