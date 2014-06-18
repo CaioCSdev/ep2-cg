@@ -151,7 +151,7 @@ window.onload = function init()
     oldWidth = screenWidth;
     oldHeight = screenHeight;
     
-    stringNames = ['ball.vobj', 'pinball7.vobj', 'flipper2l.vobj', 'flipper2r.vobj', 'obstaculo4.vobj', 'cilindro.vobj'];
+    stringNames = ['sphere3.vobj', 'pinball7.vobj', 'flipper2l.vobj', 'flipper2r.vobj', 'obstaculo4.vobj', 'cilindro.vobj'];
     readObj(stringNames[0]);
 }
 
