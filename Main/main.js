@@ -39,6 +39,8 @@ var table;
 var cylinder;
 
 var ballVertexRange;
+var newBallVertexRange;
+var otherBallVertexRange;
 var tableVertexRange;
 
 var index = 0;
@@ -48,8 +50,6 @@ var verticesStart = 0;
 var previousPointsSize = 0;
 
 
-// Mais bolas
-// Dar textura para a rotação da bola ser visível
 // Colocar a aceleração com base no tempo
 // Colocar a mola com o tempo
 // Arrumar os pontos
@@ -207,6 +207,8 @@ function finishInit() {
     
     // Bola
     ballVertexRange = readObject(objStrings[0], colorBallForVertex);
+    newBallVertexRange = readObject(objStrings[0], colorNewBallForVertex);
+    otherBallVertexRange = readObject(objStrings[0], colorOtherBallForVertex);
     ball = newObjectBall(ballVertexRange, startingPosition, ballSize * 20);
     balls.push(ball);
     
@@ -567,6 +569,20 @@ function colorBallForVertex (vertex) {
         return red(vertex);
 }
 
+function colorNewBallForVertex (vertex) {
+    if (vertex[1] <= 0.1 && vertex[1] >= -0.1)
+        return yellow(vertex);
+    else
+        return blue(vertex);
+}
+
+function colorOtherBallForVertex (vertex) {
+    if (vertex[1] <= 0.1 && vertex[1] >= -0.1)
+        return yellow(vertex);
+    else
+        return green(vertex);
+}
+
 function red ( vertex ) { return vec4(0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.2, 0.0); }
 function blue ( vertex ) { return vec4(0.2, 0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0); }
 function green ( vertex ) { return vec4(0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.0); }
@@ -760,9 +776,7 @@ function checkLoseLife() {
                 }
                 
                 // Leva a bola para a posição inicial
-                var desloc = minus(startingPosition, this.position);
-                this.translate(desloc);
-                this.velocity = vec4(0.0, 0.0, 0.0, 0.0);
+                resetBalls();
             }
             else {                      // Se tinha várias bolas, só tira essa do vetor
                 var index = balls.indexOf(this);
@@ -957,7 +971,6 @@ function updateGravity() {
 //_____________________________________________________
 // Reset
 function resetGame() {
-    console.log("RESET");
     resetLives();
     setScore(0);
     resetGravity();
@@ -985,8 +998,10 @@ function ballWillCrash (energyCoefficient) {
         playSound("score2-2");
         if (energyCoefficient == obstacleEnergy + 0.1)
             object1Hit = true;
-        if (energyCoefficient == obstacleEnergy + 0.2)
+        if (energyCoefficient == obstacleEnergy + 0.2) {
             object2Hit = true;
+            createMoreBalls();
+        }
         if (energyCoefficient == obstacleEnergy + 0.3)
             object3Hit = true;
     }
@@ -994,11 +1009,23 @@ function ballWillCrash (energyCoefficient) {
     playSound("click");
 }
 
+function createMoreBalls () {
+    
+    if (balls.length == 1) {
+        var newBall = newObjectBall(newBallVertexRange, vec4(0.0, 0.1, 0.25, 1.0), ballSize * 20);
+        newBall.velocity = vec4(-0.005, 0.0, 0.0, 0.0);
+        balls.push(newBall);
+        
+        var otherBall = newObjectBall(otherBallVertexRange, vec4(0.07, 0.0, 0.25, 1.0), ballSize * 20);
+        otherBall.velocity = vec4(0.005, 0.0, 0.0, 0.0);
+        balls.push(otherBall);
+    }
+}
+
+
 function ballDidCrash (energyCoefficient) {
     var time = (new Date()).getTime();
     var dt = time - crashTime;
-    
-    console.log(dt);
     
     if (dt >= 200) {
         if (energyCoefficient <= 1) {
@@ -1521,7 +1548,7 @@ function handleMouseMove(event) {
         deltaX /= screenWidth;
         deltaY /= screenHeight;
         
-        ball.translate(vec4(deltaX, -deltaY, 0.0, 0.0));
+        balls[0].translate(vec4(deltaX, -deltaY, 0.0, 0.0));
     }
     /* DO STUFF */
     
@@ -1629,7 +1656,6 @@ function render() {
     
     // Limpa a tela
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    
     
     // Para cada bola
     for (i = 0; i < balls.length; i++) {
