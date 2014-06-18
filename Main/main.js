@@ -35,6 +35,7 @@ var objects = [];
 var balls = [];
 var flippers = [];
 var table;
+var cylinder;
 
 var ballVertexRange;
 var tableVertexRange;
@@ -150,7 +151,7 @@ window.onload = function init()
     oldWidth = screenWidth;
     oldHeight = screenHeight;
     
-    stringNames = ['ball.vobj', 'pinball7.vobj', 'flipper2l.vobj', 'flipper2r.vobj', 'obstaculo4.vobj'];
+    stringNames = ['ball.vobj', 'pinball7.vobj', 'flipper2l.vobj', 'flipper2r.vobj', 'obstaculo4.vobj', 'cilindro.vobj'];
     readObj(stringNames[0]);
 }
 
@@ -231,18 +232,21 @@ function finishInit() {
     var obstacleVertexRange = readObject(objStrings[4]);    // Obstáculo
     var obs1 = newObject(obstacleVertexRange, vec4(0.0, 0.1, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
     objects.push(obs1);
- 
-    
     var obs2 = newObject(obstacleVertexRange, vec4(0.1, 0.15, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
     objects.push(obs2);
-
-    
     var obs3 = newObject(obstacleVertexRange, vec4(0.07, 0.0, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
     objects.push(obs3);
     
+    
+    
+    var cylinderVertexRange = readObject(objStrings[5]);
+    cylinder = newObject(cylinderVertexRange, vec4(0.222, -0.375, 0.245, 1.0), 0.05, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    objects.push(cylinder);
+    
     //__________________________________________________________
     /* Hitboxes */
-
+    
+    
     // Obstaculos
     newHitbox(vec2(-0.3505, 0.7383), vec2(-0.2005, 0.8083), obstacleEnergy, 0); // /
     newHitbox(vec2(-0.2205, 0.7883), vec2(-0.0505, 0.7583), obstacleEnergy, 0); // \ Dir
@@ -885,21 +889,26 @@ function updateLives () {
 // Spring
 function contractSpring() {
     if (springForce <= 100) {
-        springForce += 0.5;
+        springForce += 2;
+        cylinder.translate(vec4(0.0, -0.015 * 2 / 100, 0.0, 0.0));
     }
 }
 
 function releaseSpring() {
     playSound("ballLift2");
+
+    cylinder.translate(vec4(0.0, 0.015 * springForce / 100, 0.0, 0.0));
     
     if (balls[0].position[0] >= 0.21) {
         if (balls[0].position[1] <= -0.34) {
             if (play == true) {
-                var force = springForce/1000;
+                var force = springForce/5000;
                 balls[0].velocity = vec4(0.0, force, 0.0, 0.0);
             }
         }
     }
+    
+    springForce = 0;
 }
 
 
