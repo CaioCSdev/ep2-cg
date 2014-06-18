@@ -54,6 +54,7 @@ var previousPointsSize = 0;
 // Arrumar os pontos
 // Arrumar os sons
 // Arrumar comandos
+// Arrumar as normais dos obstáculos
 
 
 // SKYBOX
@@ -62,7 +63,7 @@ var previousPointsSize = 0;
 
 // ===================================================================================================
 /* Física */
-var gravity = vec4(0.0, -0.0005, 0.0, 0.0);
+var gravity = vec4(0.0, -0.0003, 0.0, 0.0);
 
 var ballSize = 0.0013;
 var ballCircumference = 2 * Math.PI * ballSize;
@@ -86,6 +87,10 @@ var startingPosition = vec4(0.227, -0.35, 0.25, 1.0);
 var lookAtAngle = Math.PI/6;
 var lookatRadius = 1.0;
 
+
+var obstacleEnergy = 1.1;
+
+
 // ===================================================================================================
 /* Gameplay */
 var score = 0;
@@ -100,15 +105,13 @@ var flipperLeftIsMoving = false;
 var flipperRightIsMoving = false;
 var flipperLeftMovementTime = 0;
 var flipperRightMovementTime = 0;
-var flipperLeftCommonEnergy = 0.722;
-var flipperRightCommonEnergy = 0.723;
 
 // Audio
 var soundOn = true;
 
 var audioContext;
 var audioChannels = [];
-var audioNames = ["click", "ballLift2", "buzzBell", "flip"];
+var audioNames = ["click", "ballLift2", "buzzBell", "flip", "score2-2"];
 
 
 var ARlight = 0.7843;
@@ -147,7 +150,7 @@ window.onload = function init()
     oldWidth = screenWidth;
     oldHeight = screenHeight;
     
-    stringNames = ['ball.vobj', 'pinball7.vobj', 'flipper2l.vobj', 'flipper2r.vobj'];
+    stringNames = ['ball.vobj', 'pinball7.vobj', 'flipper2l.vobj', 'flipper2r.vobj', 'obstaculo4.vobj'];
     readObj(stringNames[0]);
 }
 
@@ -225,13 +228,40 @@ function finishInit() {
     objects.push(flipper2);
     flippers.push(flipper2);
     
+    var obstacleVertexRange = readObject(objStrings[4]);    // Obstáculo
+    var obs1 = newObject(obstacleVertexRange, vec4(0.0, 0.1, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    objects.push(obs1);
+ 
+    
+    var obs2 = newObject(obstacleVertexRange, vec4(0.1, 0.15, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    objects.push(obs2);
+
+    
+    var obs3 = newObject(obstacleVertexRange, vec4(0.07, 0.0, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    objects.push(obs3);
     
     //__________________________________________________________
     /* Hitboxes */
 
+    // Obstaculos
+    newHitbox(vec2(-0.3505, 0.7383), vec2(-0.2005, 0.8083), obstacleEnergy, 0); // /
+    newHitbox(vec2(-0.2205, 0.7883), vec2(-0.0505, 0.7583), obstacleEnergy, 0); // \ Dir
+    newHitbox(vec2(-0.0705, 0.7383), vec2(-0.2005, 0.7083), obstacleEnergy, 0); // /
+    newHitbox(vec2(-0.2205, 0.6883), vec2(-0.3505, 0.7583), obstacleEnergy, 0); // \ Esq
+
+    newHitbox(vec2(-0.3505 + 0.5847, 0.7383 + 0.0822), vec2(-0.2005 + 0.5847, 0.8083 + 0.0822), obstacleEnergy, 0); // /
+    newHitbox(vec2(-0.2205 + 0.5847, 0.7883 + 0.0822), vec2(-0.0505 + 0.5847, 0.7583 + 0.0822), obstacleEnergy, 0); // \ Dir
+    newHitbox(vec2(-0.0705 + 0.5847, 0.7383 + 0.0822), vec2(-0.2005 + 0.5847, 0.7083 + 0.0822), obstacleEnergy, 0); // /
+    newHitbox(vec2(-0.2205 + 0.5847, 0.6883 + 0.0822), vec2(-0.3505 + 0.5847, 0.7583 + 0.0822), obstacleEnergy, 0); // \ Esq
+
+    newHitbox(vec2(-0.3505 + 0.4093, 0.7383 - 0.1645), vec2(-0.2005 + 0.4093, 0.8083 - 0.1645), obstacleEnergy, 0); // /
+    newHitbox(vec2(-0.2205 + 0.4093, 0.7883 - 0.1645), vec2(-0.0505 + 0.4093, 0.7583 - 0.1645), obstacleEnergy, 0); // \ Dir
+    newHitbox(vec2(-0.0705 + 0.4093, 0.7383 - 0.1645), vec2(-0.2005 + 0.4093, 0.7083 - 0.1645), obstacleEnergy, 0); // /
+    newHitbox(vec2(-0.2205 + 0.4093, 0.6883 - 0.1645), vec2(-0.3505 + 0.4093, 0.7583 - 0.1645), obstacleEnergy, 0); // \ Esq
+    
     // Flippers
-    newHitbox(vec2(-0.5454, 0.1070), vec2(-0.0714, 0.0590), flipperLeftCommonEnergy, 0);       // Esq
-    newHitbox(vec2(0.0909, 0.0590), vec2(0.6038, 0.1070), flipperRightCommonEnergy, 0);       // Dir
+    newHitbox(vec2(-0.5454, 0.1070), vec2(-0.0714, 0.0590), 0.6, 0);       // Esq
+    newHitbox(vec2(0.0909, 0.0590), vec2(0.6038, 0.1070), 0.6, 0);       // Dir
     
     
     // Limites
@@ -878,11 +908,11 @@ function releaseSpring() {
 //_____________________________________________________
 // Gravity
 function resetGravity() {
-    gravity = vec4(0.0, -0.0004, 0.0, 0.0);
+    gravity = vec4(0.0, -0.0003, 0.0, 0.0);
 }
 
 function updateGravity() {
-    gravity = vec4(0.0, -0.0004 * Math.cos(lookAtAngle), 0.0, 0.0);
+    gravity = vec4(0.0, -0.0003 * Math.cos(lookAtAngle), 0.0, 0.0);
 }
 
 
@@ -914,6 +944,11 @@ function resetBalls() {
 // Events
 
 function ballWillCrash (energyCoefficient) {
+    if (energyCoefficient == obstacleEnergy) {
+        playSound("score2-2");
+        
+    }
+    
     playSound("click");
 }
 
@@ -924,11 +959,14 @@ function ballDidCrash (energyCoefficient) {
     console.log(dt);
     
     if (dt >= 200) {
-        if (energyCoefficient > 1) {
+        if (energyCoefficient <= 1) {
+            addToScore(3);
+        }
+        else if (energyCoefficient == obstacleEnergy) {
             addToScore(100);
         }
         else {
-            addToScore(3);
+            addToScore(20);
         }
         
         
@@ -1156,13 +1194,13 @@ function applyForces () {
     var hitFlipper = false;
     if (flipperLeftIsMoving) {
         if (ballHitsLeftFlipper(this)) {
-            this.velocity = plus(this.velocity, mult(0.02, vec4(0.2, 1.0, 0.0, 0.0)));
+            this.velocity = plus(this.velocity, mult(0.01, vec4(0.2, 1.0, 0.0, 0.0)));
             hitFlipper = true;
         }
     }
     if (flipperRightIsMoving) {
         if (ballHitsRightFlipper(this)) {
-            this.velocity = plus(this.velocity, mult(0.02, vec4(-0.2, 1.0, 0.0, 0.0)));
+            this.velocity = plus(this.velocity, mult(0.01, vec4(-0.2, 1.0, 0.0, 0.0)));
             hitFlipper = true;
         }
     }
