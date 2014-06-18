@@ -2,6 +2,7 @@
 /* WebGL */
 var canvas;
 var gl;
+var program;
 
 
 // ===================================================================================================
@@ -24,25 +25,34 @@ var mouseRDown = false;
 // ===================================================================================================
 /* Objetos */
 var i = 0;
+
+// Vetores dos vértices
 var vertices = [];
 var points = [];
 var colors = [];
 var normals = [];
-var normalsAux = [];
-var pointsAux = [];
 
+// Vetores e ponteiros para objetos
 var objects = [];
 var balls = [];
 var flippers = [];
 var obstacles = [];
+var texes = [];
 var table;
 var cylinder;
 
+// Texturas
+var cubeTextures = [];
+var cubeTextureNames = ["saucer.png", "wall.png", "floor.png", "wall2.png", "wall2.png"];
+
+// Modelos
 var ballVertexRange;
 var newBallVertexRange;
 var otherBallVertexRange;
 var tableVertexRange;
 
+
+// Auxiliares
 var index = 0;
 var stringNames = [];
 var objStrings = [];
@@ -50,73 +60,84 @@ var verticesStart = 0;
 var previousPointsSize = 0;
 
 
-// Colocar a aceleração com base no tempo
-// Colocar a mola com o tempo
-// Arrumar comandos
-// Arrumar as normais dos obstáculos
-
-
-// SKYBOX
-// TEXTURA NA MESA
-
 
 // ===================================================================================================
 /* Física */
+// Gravidade
 var gravity = vec4(0.0, -0.0003, 0.0, 0.0);
 
+// Propriedades da bola
 var ballSize = 0.0013;
 var ballCircumference = 2 * Math.PI * ballSize;
 
+// Força da mola
 var springForce = 0;
 
 
 // ===================================================================================================
 /* Hitboxes */
+// Vetor de hitboxes
 var hitboxes = [];
 
-
-
+// Coeficiente de energia default dos obstáculos
+var obstacleEnergy = 1.1;
 
 // ===================================================================================================
 /* Tabuleiro */
+// Normal
 var boardNormal = vec4(0.0, 0.0, 1.0, 0.0);
+
+// Posição inicial da bola
 var startingPosition = vec4(0.227, -0.35, 0.25, 1.0);
 
-
-var lookAtAngle = Math.PI/6;
+// Ângulo de inclinação da messa e fator de zoom
+var lookAtAngle = 0;
 var lookatRadius = 1.0;
-
-
-var obstacleEnergy = 1.1;
 
 
 // ===================================================================================================
 /* Gameplay */
+
+// tempo
+var time;
+
+//Atributos
 var score = 0;
 var highScore = 0;
 var lives = 3;
 
+// Auxiliares
 var crashTime = 0;
 
+// Pausa/Play
 var play = true;
 
+// Flippers
 var flipperLeftIsMoving = false;
 var flipperRightIsMoving = false;
 var flipperLeftMovementTime = 0;
 var flipperRightMovementTime = 0;
 
+// Obstáculos
 var object1Hit = false;
 var object2Hit = false;
 var object3Hit = false;
 
-// Audio
+
+// ===================================================================================================
+/* Audio */
+// Toggle
 var soundOn = true;
 
+// Contexto
 var audioContext;
 var audioChannels = [];
 var audioNames = ["click", "ballLift2", "buzzBell", "flip", "score2-2", "score4"];
 
 
+// ===================================================================================================
+/* Iluminação */
+// Coeficientes de iluminação
 var ARlight = 0.7843;
 var AGlight = 0.7843;
 var ABlight = 0.7843;
@@ -130,6 +151,13 @@ var SBlight = 0.7843;
 var KA = 1;
 var KD = 1;
 var KS = 1;
+
+
+
+
+
+
+
 
 // ===================================================================================================
 /* Main */
@@ -153,11 +181,12 @@ window.onload = function init()
     oldWidth = screenWidth;
     oldHeight = screenHeight;
     
-    stringNames = ['sphere3.vobj', 'pinball7.vobj', 'flipper2l.vobj', 'flipper2r.vobj', 'obstaculo4.vobj', 'cilindro.vobj'];
+    // Lê os objetos
+    stringNames = ['sphere3.vobj', 'pinball7.vobj', 'flipper2l.vobj', 'flipper2r.vobj', 'obstaculo4.vobj', 'cilindro.vobj', 'square.vobj'];
     readObj(stringNames[0]);
 }
 
-/* LEITURA DE ARQUIVOS */
+
 // Manda o JQuery ler o arquivo 'url'
 var readObj = function(url) {
     $.get(url, readObjCallback);
@@ -179,13 +208,74 @@ var readObjCallback = function(obj) {
 };
 
 
+// Carrega os áudios
+function initSounds () {
+    // Cria o contexto de áudio
+    try {
+        window.AudioContext = window.AudioContext||window.webkitAudioContext;
+        audioContext = new AudioContext();
+    }
+    catch(e) {
+        alert('Web Audio API is not supported in this browser');
+    }
+    
+    // Cria um vetor com os caminhos para os arquivos de áudio
+    var audioPaths = [];
+    for (var i = 0; i < audioNames.length; i++) {
+        audioPaths[i] = "Audio/" + audioNames[i] + ".wav";
+    }
+    
+    // Lê os arquivos (assincronamente)
+    var bufferLoader = new BufferLoader( audioContext, audioPaths, finishLoadingAudio);
+    
+    bufferLoader.load();
+}
+
+function finishLoadingAudio ( bufferList ) {
+    // Coloca os arquivos lidos no seu vetor
+    for (var i = 0; i < audioNames.length; i++) {
+        audioChannels[audioNames[i]] = bufferList[i];
+    }
+    
+    initTextures();
+}
 
 
+// Carrega as texturas
+function initTextures() {
+    cubeTextures.push(gl.createTexture());
+    var cubeImage = new Image();
+    cubeImage.onload = function() { handleTextureLoaded(cubeImage, cubeTextures[cubeTextures.length-1]); }
+    cubeImage.src = cubeTextureNames[cubeTextures.length-1];
+}
+
+function handleTextureLoaded(image, texture) {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    
+    if (cubeTextures.length == cubeTextureNames.length) {
+        finishInit();
+    }
+    else {
+        initTextures();
+    }
+}
+
+
+
+
+
+
+// Restante da inicialização
 function finishInit() {
     i = 0;
     
     //______________________________________________________________
-    // Liga os callbacks
+    // Liga os callbacks de mouse e teclado
     canvas.onmousedown = handleMouseDown;
     document.onmouseup = handleMouseUp;
     document.onmousemove = handleMouseMove;
@@ -203,7 +293,30 @@ function finishInit() {
     // Cria os objetos
     
     
-    // Bola
+    // Skybox
+    var squareVertexRange = readObject(objStrings[6]);
+    
+    var square = newObject(squareVertexRange, vec4(0.046, -0.038, 0.246, 1.0), 0.4);
+    square.deform(vec4(1.0, -1.5, 1.0, 0.0));
+    texes.push(square);
+    
+    var wall = newObject(squareVertexRange, vec4(0.046, 0.5, 0.3, 1.0), 1.0, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    wall.deform(vec4(2.0, -1.0, 1.0, 0.0));
+    texes.push(wall);
+
+    var floor = newObject(squareVertexRange, vec4(0.046, 0, -0.2, 1.0), 1.0);
+    floor.deform(vec4(2.0, -2.0, 1.0, 0.0));
+    texes.push(floor);
+
+    var wall2 = newObject(squareVertexRange, vec4(-0.654, 0, 0.3, 1.0), 1.0, vec4(0.0, 1.0, 0.0, 0.0), -90);
+    wall2.deform(vec4(1.0, -1.4, 1.0, 0.0));
+    texes.push(wall2);
+
+    var wall3 = newObject(squareVertexRange, vec4(0.78, 0, 0.3, 1.0), 1.0, vec4(0.0, 1.0, 0.0, 0.0), -90);
+    wall3.deform(vec4(1.0, -1.4, 1.0, 0.0));
+    texes.push(wall3);
+    
+    // Bolas
     ballVertexRange = readObject(objStrings[0], colorBallForVertex);
     newBallVertexRange = readObject(objStrings[0], colorNewBallForVertex);
     otherBallVertexRange = readObject(objStrings[0], colorOtherBallForVertex);
@@ -219,6 +332,8 @@ function finishInit() {
     table.deform(vec4(1.0, 0.3, 1.0, 0.0));
     objects.push(table);
 
+    
+    // Flippers
     var flipperLVertexRange = readObject(objStrings[2], blue);     // flipper esquerdo
     var flipper = newObjectFlipper(flipperLVertexRange, true, vec4(-0.03, -0.31, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
     flipper.rotate(vec4(0.0, 0.0, 1.0, 0.0), -110);
@@ -233,6 +348,8 @@ function finishInit() {
     objects.push(flipper2);
     flippers.push(flipper2);
     
+    
+    // Obstáculos
     var obstacleVertexRange1 = readObject(objStrings[4], red);    // Obstáculo
     var obs1 = newObject(obstacleVertexRange1, vec4(0.0, 0.1, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
     obstacles.push(obs1);
@@ -244,10 +361,12 @@ function finishInit() {
     obstacles.push(obs3);
     
     
-    
+    // Cilindro de lançamento
     var cylinderVertexRange = readObject(objStrings[5], white);
     cylinder = newObject(cylinderVertexRange, vec4(0.222, -0.375, 0.245, 1.0), 0.05, vec4(1.0, 0.0, 0.0, 0.0), 90);
     objects.push(cylinder);
+    
+    
     
     //__________________________________________________________
     /* Hitboxes */
@@ -322,9 +441,6 @@ function finishInit() {
     
     
     
-    
-    
-    
     //__________________________________________________________
     /* Gameplay */
     resetLives();
@@ -357,7 +473,7 @@ function finishInit() {
     
     
     // Load shaders and initialize attribute buffers
-    var program = initShaders( gl, "vertex-shader", "fragment-shader" );
+    program = initShaders( gl, "vertex-shader", "fragment-shader" );
     gl.useProgram( program );
     
     
@@ -392,7 +508,27 @@ function finishInit() {
     gl.enableVertexAttribArray( vNormal );
     
     
+    // Idem, para o vetor de texturas
+    var cubeVerticesTextureCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesTextureCoordBuffer);
     
+    var textureCoordinates = [
+                              vec2(0.0,  0.0),
+                              vec2(1.0,  1.0),
+                              vec2(1.0,  0.0),
+                              vec2(0.0,  0.0),
+                              vec2(0.0,  1.0),
+                              vec2(1.0,  1.0),
+                              ];
+    
+    for (var i = textureCoordinates.length; i < points.length; i++)
+        textureCoordinates.push(vec2(0.0, 0.0));
+    
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(textureCoordinates), gl.DYNAMIC_DRAW);
+    
+    var vTexture = gl.getAttribLocation(program, "vTexture");
+    gl.vertexAttribPointer( vTexture, 2, gl.FLOAT, false, 0, 0 );
+    gl.enableVertexAttribArray(vTexture);
     
     
     
@@ -403,30 +539,19 @@ function finishInit() {
     dLightLoc = gl.getUniformLocation(program, "dLight");
     sLightLoc = gl.getUniformLocation(program, "sLight");
     constsLoc = gl.getUniformLocation(program, "constants");
+    textureLoc = gl.getUniformLocation(program, "useTexture");
     
+    
+    // Pega o tempo
+    time = (new Date()).getTime();
+    
+    // Começa o loop do programa
     render();
 };
 
 
-function normalForHitbox(v1, v2) {
-    var a = vec4(v1[0] * 0.171, v1[1] * 0.608, 0.0, 0.0);
-    var b = vec4(v2[0] * 0.171, v2[1] * 0.608, 0.0, 0.0);
-    var v = minus(a, b);
-    var n = cross(v, boardNormal);
-    normalize(n);
-    n = vec4(n[0], n[1], n[2], 0.0);
-    
-    return n;
-}
 
-function newHitbox(v1, v2, e, direction) {
-    var n = normalForHitbox(v1, v2);
-    if (direction == 1) n = mult(-1, n);
-    
-    var hitbox = [v1, v2, n, e];
-    
-    hitboxes.push(hitbox);
-}
+
 
 
 
@@ -453,7 +578,7 @@ function newHitbox(v1, v2, e, direction) {
 // Lê os vértices de cada peça e os armazena no vetor
 function readObject( string, colorFunction ) {
     if (! colorFunction) {
-        colorFunction = blue;
+        colorFunction = allWhite;
     }
     
     var result;
@@ -560,6 +685,7 @@ function readObject( string, colorFunction ) {
 
 
 
+// Funções usadas para colorir os objetos
 function colorBallForVertex (vertex) {
     if (vertex[1] <= 0.1 && vertex[1] >= -0.1)
         return yellow(vertex);
@@ -581,21 +707,21 @@ function colorOtherBallForVertex (vertex) {
         return green(vertex);
 }
 
-function red ( vertex ) { return vec4(0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.2, 0.0); }
-function blue ( vertex ) { return vec4(0.2, 0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0); }
-function green ( vertex ) { return vec4(0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.0); }
+function red ( vertex ) { return vec4(0.6, 0.2, 0.2, 0.0); }
+function blue ( vertex ) { return vec4(0.2, 0.2, 0.6, 0.0); }
+function green ( vertex ) { return vec4(0.2, 0.6, 0.2, 0.0); }
 
-function cyan ( vertex ) { return vec4(0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0); }
-function yellow ( vertex ) { return vec4(0.6 + (vertex[1] - 0.5) * 0.25, 0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.0); }
-function magenta ( vertex ) { return vec4(0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0); }
+function cyan ( vertex ) { return vec4(0.2, 0.6, 0.6, 0.0); }
+function yellow ( vertex ) { return vec4(0.6, 0.6, 0.2, 0.0); }
+function magenta ( vertex ) { return vec4(0.6, 0.2, 0.6, 0.0); }
 
-function white ( vertex ) { return vec4(0.6 + (vertex[1] - 0.5) * 0.25, 0.6 + (vertex[1] - 0.5) * 0.25, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0); }
-function black ( vertex ) { return vec4(0.2 + (vertex[1] - 0.5) * 0.25, 0.2 + (vertex[1] - 0.5) * 0.25, 0.2 + (vertex[1] - 0.5) * 0.25, 0.0); }
+function white ( vertex ) { return vec4(0.6, 0.6, 0.6, 0.0); }
+function black ( vertex ) { return vec4(0.2, 0.2, 0.2, 0.0); }
 
+function allWhite ( vertex ) { return vec4(1.0, 1.0, 1.0, 0.0); }
 
 
 /* Cria um novo objeto de acordo com os parâmetros passados */
-
 function newObject( vertexRange, position, size, vector, angle ) {
     
     if (! position) position = vec4(0.0, 0.0, 0.0, 1.0);
@@ -761,6 +887,34 @@ function newObjectBall ( vertexRange, position, size, vector, angle ) {
 
 
 
+
+// Calcula a normal de uma hitbox
+function normalForHitbox(v1, v2) {
+    var a = vec4(v1[0] * 0.171, v1[1] * 0.608, 0.0, 0.0);
+    var b = vec4(v2[0] * 0.171, v2[1] * 0.608, 0.0, 0.0);
+    var v = minus(a, b);
+    var n = cross(v, boardNormal);
+    normalize(n);
+    n = vec4(n[0], n[1], n[2], 0.0);
+    
+    return n;
+}
+
+// Cria uma nova hitbox e a coloca no vetor de hitboxes
+function newHitbox(v1, v2, e, direction) {
+    var n = normalForHitbox(v1, v2);
+    if (direction == 1) n = mult(-1, n);
+    
+    var hitbox = [v1, v2, n, e];
+    
+    hitboxes.push(hitbox);
+}
+
+
+
+
+// Vê se alguma bola chegou no final do tabuleiro
+// e tira uma vida se necessário
 function checkLoseLife() {
     if (this.position[1] <= -0.353) {     // Essa bola passou!
         if (this.position[0] <= 0.21) {
@@ -784,6 +938,9 @@ function checkLoseLife() {
     }
 }
 
+
+
+// Começa o movimento o flipper
 function startFlipperMovement(isLeft) {
     if (isLeft) {
         flipperLeftIsMoving = true;
@@ -796,7 +953,7 @@ function startFlipperMovement(isLeft) {
 }
 
 
-
+// Move o flipper
 function moveFlipper() {
     if (this.isLeft)
         angle = 20;
@@ -806,6 +963,7 @@ function moveFlipper() {
     this.rotate(vec4(0.0, 0.0, 1.0, 0.0), angle);
 }
 
+// Volta o flipper à sua posição original
 function resetFlipper() {
     if (this.isLeft) {
         angle = -20 * 3;
@@ -821,6 +979,14 @@ function resetFlipper() {
 
 
 
+
+
+
+
+
+
+
+// ======================================================================================
 /* Funções de transformação geométrica dos objetos */
 
 
@@ -886,7 +1052,7 @@ function setScore ( value ) {
     updateScore();
 }
 
-
+// Joga o score no HTML
 function updateScore () {
     if (score > highScore) highScore = score;
     
@@ -927,6 +1093,8 @@ function updateLives () {
 
 //_____________________________________________________
 // Spring
+
+// Contrai a "mola"
 function contractSpring() {
     if (springForce <= 100) {
         springForce += 2;
@@ -934,6 +1102,7 @@ function contractSpring() {
     }
 }
 
+// Solta a mola e lança a bola, se ela estiver lá
 function releaseSpring() {
     playSound("ballLift2");
 
@@ -961,7 +1130,7 @@ function resetGravity() {
 }
 
 function updateGravity() {
-    gravity = vec4(0.0, -0.0003 * Math.cos(lookAtAngle), 0.0, 0.0);
+    gravity = vec4(0.0, -0.0003 * (1.0 / Math.cos(lookAtAngle * Math.PI / 180)), 0.0, 0.0);
 }
 
 
@@ -991,6 +1160,7 @@ function resetBalls() {
 //_____________________________________________________
 // Events
 
+// Se a bola vai bater com algum objeto
 function ballWillCrash (energyCoefficient) {
     if (energyCoefficient >= obstacleEnergy && energyCoefficient <= obstacleEnergy + 0.3) {
         playSound("score2-2");
@@ -1007,6 +1177,7 @@ function ballWillCrash (energyCoefficient) {
     playSound("click");
 }
 
+// Cria mais duas bolas
 function createMoreBalls () {
     
     if (balls.length == 1) {
@@ -1023,6 +1194,7 @@ function createMoreBalls () {
 }
 
 
+// Se a bola bateu em algum objeto
 function ballDidCrash (energyCoefficient) {
     var time = (new Date()).getTime();
     var dt = time - crashTime;
@@ -1031,7 +1203,7 @@ function ballDidCrash (energyCoefficient) {
         if (energyCoefficient <= 1) {
             addToScore(3);
         }
-        else if (energyCoefficient == obstacleEnergy) {
+        else if (energyCoefficient >= obstacleEnergy && energyCoefficient <= obstacleEnergy + 0.3) {
             addToScore(100);
         }
         else {
@@ -1051,38 +1223,7 @@ function ballDidCrash (energyCoefficient) {
 //_____________________________________________________
 // Audio
 
-function initSounds () {
-    
-    // Cria o contexto de áudio
-    try {
-        window.AudioContext = window.AudioContext||window.webkitAudioContext;
-        audioContext = new AudioContext();
-    }
-    catch(e) {
-        alert('Web Audio API is not supported in this browser');
-    }
-    
-    // Cria um vetor com os caminhos para os arquivos de áudio
-    var audioPaths = [];
-    for (var i = 0; i < audioNames.length; i++) {
-        audioPaths[i] = "Audio/" + audioNames[i] + ".wav";
-    }
-    
-    // Lê os arquivos (assincronamente)
-    var bufferLoader = new BufferLoader( audioContext, audioPaths, finishLoadingAudio);
-    
-    bufferLoader.load();
-}
-
-function finishLoadingAudio ( bufferList ) {
-    // Coloca os arquivos lidos no seu vetor
-    for (var i = 0; i < audioNames.length; i++) {
-        audioChannels[audioNames[i]] = bufferList[i];
-    }
-    
-    finishInit();
-}
-
+// Toca o som de nome 'id'
 function playSound (id ) {
     if (soundOn == true && play == true) {
         // Cria uma fonte para tocar o som
@@ -1103,6 +1244,8 @@ function playSound (id ) {
 //_____________________
 // Audio Buffers
 
+// Funções pegas de uma biblioteca de audio
+// a partir do link fornecido pelo monitor
 function BufferLoader(context, urlList, callback) {
     this.context = context;
     this.urlList = urlList;
@@ -1164,7 +1307,7 @@ BufferLoader.prototype.load = function() {
 
 
 
-// Aplica as forças acumuladas a um objeto
+// Aplica a força da gravidade e as reflexões a um objeto
 function applyForces () {
     if (mouseDown) {
         this.velocity = vec4(0.0, 0.0, 0.0, 0.0);
@@ -1172,9 +1315,13 @@ function applyForces () {
     }
     
     
-    this.velocity = plus(this.velocity, gravity);
-    
     var speed = this.velocity;
+    
+    var newTime = (new Date()).getTime();
+    var dt = (newTime - time)/100;
+    time = newTime;
+    
+    this.velocity = plus(this.velocity, mult(dt, gravity));
     
     var resultHitboxIndex = -1;
     var resultHitboxDistance = vec4(100.0, 0.0, 0.0, 0.0);
@@ -1326,6 +1473,7 @@ function applyForces () {
 }
 
 
+// Checa se a bola bateu no flipper esquerdo
 function ballHitsLeftFlipper (ball) {
     var p1 = vec4(-0.5454 * 0.171 + 0.036, 0.1070 * 0.608 - 0.355, ball.position[2], 0.0);
     var p2 = vec4(-0.0714 * 0.171 + 0.036, 0.1550 * 0.608 - 0.355, ball.position[2], 0.0);
@@ -1335,6 +1483,7 @@ function ballHitsLeftFlipper (ball) {
     return isInside(tri, ball.position);
 }
 
+// Checa se a bola bateu no flipper direito
 function ballHitsRightFlipper (ball) {
     var p1 = vec4(0.0909 * 0.171 + 0.036, 0.0590 * 0.608 - 0.355, ball.position[2], 0.0);
     var p2 = vec4(0.0909 * 0.171 + 0.036, 0.1550 * 0.608 - 0.355, ball.position[2], 0.0);
@@ -1422,29 +1571,26 @@ function updateModelViewMatrix() {
 /* MATRIZES DE PROJEÇÃO */
 // Cria e seta a matriz de perspectiva
 function updatePerspective() {
-    //    projec = perspective(60, canvas.width/canvas.height, 2.0, 0.0001);
-//    projec = mat4();
-//    var orthoZoom = 0.5;
-//    projec = ortho(orthoZoom  * -canvas.width/canvas.height, orthoZoom  * canvas.width/canvas.height, orthoZoom  * -1.6, orthoZoom  * 1.6, orthoZoom  * -4.1, orthoZoom  * -0.1);
     projec = perspective(60, canvas.width/canvas.height, 4.0, 0.0001);
 }
 
 function updateLookAt( inclination ) {
     // Se está dentro dos limites
-    if ( lookAtAngle + Math.PI * inclination / 180 <= Math.PI/4 &&
-        lookAtAngle + Math.PI * inclination / 180 >= 0 ) {
-    
+    if ( lookAtAngle + inclination <= 25 &&
+        lookAtAngle + inclination >= 0 ) {
+        
+        lookAtAngle += inclination;
+        
         // Acha os novos ângulos
-        lookAtAngle += Math.PI * inclination / 180;
-        var upAngle = Math.Pi/2 + lookAtAngle;
+        var upAngle = Math.Pi/2 + Math.PI/6;
         
         // Calcula o zoom adequado
-        var radius = - lookAtAngle / Math.PI + 1.0;
+        var radius = - Math.PI/6 / Math.PI + 1.0 + 0.005 * lookAtAngle;
         
         // Acha os vetores
-        eye = vec3(0.0, -Math.sin(lookAtAngle) * radius, Math.cos(lookAtAngle) * radius);
+        eye = vec3(0.0, -Math.sin(Math.PI/6) * radius, Math.cos(Math.PI/6) * radius);
         at = vec3(0.0, 0.0, 0.0);
-        up = vec3(0.0, Math.cos(lookAtAngle), Math.sin(lookAtAngle));
+        up = vec3(0.0, Math.cos(Math.PI/6), Math.sin(Math.PI/6));
         
         // Atualiza a matriz
         lookat = lookAt(eye, at, up);
@@ -1550,7 +1696,6 @@ function handleMouseMove(event) {
         
         balls[0].translate(vec4(deltaX, -deltaY, 0.0, 0.0));
     }
-    /* DO STUFF */
     
     // Atualiza a posição "anterior" do mouse
     lastMouseX = newX
@@ -1558,41 +1703,35 @@ function handleMouseMove(event) {
     
 }
 
-// Callback próprio para lidar com as teclas
+
+// Callbacks do teclado
+
+// Teclas seguradas
 function handleKeys() {
-    var ySpeed = 0;
-    var xSpeed = 0;
     if (currentlyPressedKeys[37] == true) {
         // Left cursor key
-        ySpeed -= 1;
+        updateLookAt(1);
     }
     if (currentlyPressedKeys[39] == true) {
         // Right cursor key
-        ySpeed += 1;
+        updateLookAt(-1);
     }
     if (currentlyPressedKeys[38] == true) {
         // Up cursor key
-        updateLookAt(0.1);
-        xSpeed -= 1;
+        updateLookAt(-1);
     }
     if (currentlyPressedKeys[40] == true) {
         // Down cursor key
-        updateLookAt(-0.1);
-        xSpeed += 1;
+        updateLookAt(1);
     }
     if (currentlyPressedKeys[32] == true) {
+        // Space
         contractSpring();
     }
-    
-    
-    if (xSpeed != 0 || ySpeed != 0) {
-        /* Do other stuff */
-    }
-    
 }
 
 
-// Callbacks do teclado
+// Teclas apertadas
 function handleKeyDown(event) {
     if (event.keyCode == 90) {
         if (currentlyPressedKeys[event.keyCode] == false)
@@ -1606,6 +1745,7 @@ function handleKeyDown(event) {
     currentlyPressedKeys[event.keyCode] = true;
 }
 
+// Teclas soltas
 function handleKeyUp(event) {
     currentlyPressedKeys[event.keyCode] = false;
     if (event.keyCode == 32) {          // Space
@@ -1657,27 +1797,33 @@ function render() {
     // Limpa a tela
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
-    // Para cada bola
+    // Roda a mesa
+    var tabRot = mvlibRotate(vec4(1.0, 0.0, 0.0, 0.0), lookAtAngle);
+    
+    // Tira as bolas que precisar
+    for (i = 0; i < balls.length; i++) {
+        if (play == true)
+            balls[i].applyForces();
+        balls[i].checkLoseLife();
+    }
+    
+    
+    // Renderiza cada bola
     for (i = 0; i < balls.length; i++) {
         var obj = balls[i];
-        
-        // Move a bola
-        if (play == true) {
-            obj.applyForces();
-        }
-        obj.checkLoseLife();
         
         // Atualiza as informações da bola
         obj.updateModelViewMatrix();
         
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
-        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
+        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, times(tabRot, obj.modelViewMatrix))));
         gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
         gl.uniform4f(aLightLoc, ARlight, AGlight, ABlight, 1.0);
         gl.uniform4f(dLightLoc, DRlight, DGlight, DBlight, 1.0);
         gl.uniform4f(sLightLoc, SRlight, SGlight, SBlight, 1.0);
         gl.uniform3f(constsLoc, KA, KD, KS);
-        
+        gl.uniform1f(textureLoc, 0.0);
+
         // Desenha a bola
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
     }
@@ -1690,19 +1836,21 @@ function render() {
         obj.updateModelViewMatrix();
         
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
-        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
+        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, times(tabRot, obj.modelViewMatrix))));
         gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
         gl.uniform4f(aLightLoc, ARlight, AGlight, ABlight, 1.0);
         gl.uniform4f(dLightLoc, DRlight, DGlight, DBlight, 1.0);
         gl.uniform4f(sLightLoc, SRlight, SGlight, SBlight, 1.0);
         gl.uniform3f(constsLoc, KA, KD, KS);
+        gl.uniform1f(textureLoc, 0.0);
         
         // Desenha o objeto
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
     }
     
-    // Para cada objeto
+    // Para cada obstaculo
     for (i = 0; i < obstacles.length; i++) {
+        // Checa se ele precisa piscar
         var lightUp = false;
         if (i==0 && object1Hit) {
             lightUp = true;
@@ -1730,17 +1878,49 @@ function render() {
         obj.updateModelViewMatrix();
         
         // Manda para o shader a matriz a ser aplicada (projeção x view x model)
-        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
+        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, times(tabRot, obj.modelViewMatrix))));
         gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
         gl.uniform4f(aLightLoc, ARlight, AGlight, ABlight, 1.0);
         gl.uniform4f(dLightLoc, DRlight, DGlight, DBlight, 1.0);
         gl.uniform4f(sLightLoc, SRlight, SGlight, SBlight, 1.0);
         gl.uniform3f(constsLoc, myKA, myKD, myKS);
+        gl.uniform1f(textureLoc, 0.0);
         
         // Desenha o objeto
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
     }
     
+    // Para cada textura
+    for (i = 0; i < texes.length; i++) {
+        var obj = texes[i];
+        
+        // Atualiza as informações do objeto
+        obj.updateModelViewMatrix();
+        
+        // Manda para o shader a matriz a ser aplicada (projeção x view x model)
+        if (i == 0)
+            gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, times(tabRot, obj.modelViewMatrix))));
+        else
+            gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
+        gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
+        gl.uniform4f(aLightLoc, ARlight, AGlight, ABlight, 1.0);
+        gl.uniform4f(dLightLoc, DRlight, DGlight, DBlight, 1.0);
+        gl.uniform4f(sLightLoc, SRlight, SGlight, SBlight, 1.0);
+        gl.uniform3f(constsLoc, KA, KD, KS);
+        gl.uniform1f(textureLoc, 1.0);
+        
+        // Seta a textura certa para a renderização
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, cubeTextures[i]);
+        gl.uniform1i(gl.getUniformLocation(program, "uSampler"), 0);
+        
+        // Desenha o objeto
+        gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
+    }
+    
+    
+        
+    // Checa se algum flipper vai voltar
     if (flipperLeftMovementTime >= 1) {
         flipperLeftIsMoving = false;
         flipperLeftMovementTime = 0;
@@ -1762,6 +1942,7 @@ function render() {
         }
     }
     
+    // Move os flippers (se necessário)
     if (flipperLeftIsMoving) {
         flipperLeftMovementTime += 0.4;
         for (i = 0; i < flippers.length; i++) {
@@ -1783,6 +1964,9 @@ function render() {
         }
     }
     
+    
+    
+    // Vai para a próxima iteração
     requestAnimFrame(render);
 }
 

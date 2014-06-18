@@ -37,7 +37,7 @@
     <input class="bar" type="range" id="SBrange" min="0" max="100" value="100" onchange="KS = this.value/100"/>
     <span class="highlight"></span>
 </div>
-<p id="Commands"><font color="Blue" size="2" face="BlairMdITC TT">X & Y: Flippers; R = Reset; Space = Launch; Arrows = Turn table; A = Toggle Audio; P = Play/Pause</font></p>
+<p id="Commands"><font color="Blue" size="2" face="BlairMdITC TT">Z & X: Flippers; R = Reset; Space = Launch; Arrows = Turn table; A = Toggle Audio; P = Play/Pause</font></p>
 <p id="Score"><font color="green" size="2" face="BlairMdITC TT">Score: 0</font><font color="gold" size="2" face="BlairMdITC TT">High Score: 0</font></p>
 <p id="Lives"><font color="red" size="2" face="BlairMdITC TT">Lives: O O O</font></p>
     <head>
@@ -51,21 +51,25 @@
                 attribute vec4 vPosition;
                 attribute vec4 vColor;
                 attribute vec4 vNormal;
+                attribute vec2 vTexture;
+
                 varying vec4 color;
-                varying vec4 normal;
+                varying float shouldUseTexture;
+                varying vec2 texCoord;
+
                 uniform mat4 modelView;
                 uniform mat4 projection;
                 uniform vec4 aLight;
                 uniform vec4 dLight;
                 uniform vec4 sLight;
                 uniform vec3 constants;
+                uniform float useTexture;
 
                 vec4 product(vec4 a, vec4 b) {
                     return vec4(a[0] * b[0], a[1] * b[1], a[2] * b[2], a[3] * b[3]);
                 }
 
                 void main() {
-                    
                     
                     vec4 ambient, diffuse, specular;
                     float shininess = 100.0;
@@ -91,6 +95,9 @@
                     diffuse = kd * constants[1] * product(dLight, vColor);
                     specular = max(ks * constants[2] * product(sLight, vColor), 0.0);
                     
+                    shouldUseTexture = useTexture;
+                    texCoord = vTexture;
+                    
                     color = vec4((ambient + diffuse + specular).xyz, 1.0);
 
                     gl_Position = projection * newPosition;
@@ -103,13 +110,26 @@
             <script id="fragment-shader" type="x-shader/x-fragment">
                 
                 precision mediump float;
+
                 varying vec4 color;
-                varying vec4 normal;
-                
+                varying float shouldUseTexture;
+                varying vec2 texCoord;
+
+                uniform sampler2D uSampler;
+
+                vec4 product(vec4 a, vec4 b) {
+                    return vec4(a[0] * b[0], a[1] * b[1], a[2] * b[2], a[3] * b[3]);
+                }
+
                 void
                 main()
                 {
-                    gl_FragColor = color;
+                    if (shouldUseTexture == 1.0) {
+                        gl_FragColor = product(texture2D(uSampler, vec2(texCoord[0], texCoord[1])), color);
+                    }
+                    else {
+                        gl_FragColor = color;
+                    }
                 }
             </script>
             
