@@ -52,8 +52,6 @@ var previousPointsSize = 0;
 
 // Colocar a aceleração com base no tempo
 // Colocar a mola com o tempo
-// Arrumar os pontos
-// Arrumar os sons
 // Arrumar comandos
 // Arrumar as normais dos obstáculos
 
@@ -116,7 +114,7 @@ var soundOn = true;
 
 var audioContext;
 var audioChannels = [];
-var audioNames = ["click", "ballLift2", "buzzBell", "flip", "score2-2"];
+var audioNames = ["click", "ballLift2", "buzzBell", "flip", "score2-2", "score4"];
 
 
 var ARlight = 0.7843;
@@ -1012,6 +1010,8 @@ function ballWillCrash (energyCoefficient) {
 function createMoreBalls () {
     
     if (balls.length == 1) {
+        playSound("score4");
+        
         var newBall = newObjectBall(newBallVertexRange, vec4(0.0, 0.1, 0.25, 1.0), ballSize * 20);
         newBall.velocity = vec4(-0.005, 0.0, 0.0, 0.0);
         balls.push(newBall);
