@@ -34,6 +34,7 @@ var pointsAux = [];
 var objects = [];
 var balls = [];
 var flippers = [];
+var obstacles = [];
 var table;
 var cylinder;
 
@@ -48,7 +49,6 @@ var previousPointsSize = 0;
 
 
 // Mais bolas
-// Criar a mola
 // Dar textura para a rotação da bola ser visível
 // Colocar a aceleração com base no tempo
 // Colocar a mola com o tempo
@@ -106,6 +106,10 @@ var flipperLeftIsMoving = false;
 var flipperRightIsMoving = false;
 var flipperLeftMovementTime = 0;
 var flipperRightMovementTime = 0;
+
+var object1Hit = false;
+var object2Hit = false;
+var object3Hit = false;
 
 // Audio
 var soundOn = true;
@@ -202,44 +206,46 @@ function finishInit() {
     
     
     // Bola
-    ballVertexRange = readObject(objStrings[0]);
+    ballVertexRange = readObject(objStrings[0], colorBallForVertex);
     ball = newObjectBall(ballVertexRange, startingPosition, ballSize * 20);
     balls.push(ball);
     
     ball.velocity = vec4(0.0, 0.0, 0.0, 0.0);
     
     // Tabuleiro
-    tableVertexRange = readObject(objStrings[1]);
+    tableVertexRange = readObject(objStrings[1], black);
     table = newObject(tableVertexRange, vec4(0.07, 0.0, 0.23, 1.0), 0.1, vec4(1.0, 0.0, 0.0, 0.0), 90);
     table.rotate(vec4(0.0, 0.0, 1.0, 0.0), -90);
     table.deform(vec4(1.0, 0.3, 1.0, 0.0));
     objects.push(table);
 
-    var flipperLVertexRange = readObject(objStrings[2]);     // flipper esquerdo
+    var flipperLVertexRange = readObject(objStrings[2], blue);     // flipper esquerdo
     var flipper = newObjectFlipper(flipperLVertexRange, true, vec4(-0.03, -0.31, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
     flipper.rotate(vec4(0.0, 0.0, 1.0, 0.0), -110);
     flipper.deform(vec4(1.0, 0.5, 1.0, 0.0));
     objects.push(flipper);
     flippers.push(flipper);
 
-    var flipperRVertexRange = readObject(objStrings[3]);     // flipper direito
+    var flipperRVertexRange = readObject(objStrings[3], blue);     // flipper direito
     var flipper2 = newObjectFlipper(flipperRVertexRange, false, vec4(0.11, -0.311, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
     flipper2.rotate(vec4(0.0, 0.0, 1.0, 0.0), -70);
     flipper2.deform(vec4(-1.0, 0.5, 1.0, 0.0));
     objects.push(flipper2);
     flippers.push(flipper2);
     
-    var obstacleVertexRange = readObject(objStrings[4]);    // Obstáculo
-    var obs1 = newObject(obstacleVertexRange, vec4(0.0, 0.1, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
-    objects.push(obs1);
-    var obs2 = newObject(obstacleVertexRange, vec4(0.1, 0.15, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
-    objects.push(obs2);
-    var obs3 = newObject(obstacleVertexRange, vec4(0.07, 0.0, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
-    objects.push(obs3);
+    var obstacleVertexRange1 = readObject(objStrings[4], red);    // Obstáculo
+    var obs1 = newObject(obstacleVertexRange1, vec4(0.0, 0.1, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    obstacles.push(obs1);
+    var obstacleVertexRange2 = readObject(objStrings[4], green);    // Obstáculo
+    var obs2 = newObject(obstacleVertexRange2, vec4(0.1, 0.15, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    obstacles.push(obs2);
+    var obstacleVertexRange3 = readObject(objStrings[4], yellow);    // Obstáculo
+    var obs3 = newObject(obstacleVertexRange3, vec4(0.07, 0.0, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    obstacles.push(obs3);
     
     
     
-    var cylinderVertexRange = readObject(objStrings[5]);
+    var cylinderVertexRange = readObject(objStrings[5], white);
     cylinder = newObject(cylinderVertexRange, vec4(0.222, -0.375, 0.245, 1.0), 0.05, vec4(1.0, 0.0, 0.0, 0.0), 90);
     objects.push(cylinder);
     
@@ -248,20 +254,20 @@ function finishInit() {
     
     
     // Obstaculos
-    newHitbox(vec2(-0.3505, 0.7383), vec2(-0.2005, 0.8083), obstacleEnergy, 0); // /
-    newHitbox(vec2(-0.2205, 0.7883), vec2(-0.0505, 0.7583), obstacleEnergy, 0); // \ Dir
-    newHitbox(vec2(-0.0705, 0.7383), vec2(-0.2005, 0.7083), obstacleEnergy, 0); // /
-    newHitbox(vec2(-0.2205, 0.6883), vec2(-0.3505, 0.7583), obstacleEnergy, 0); // \ Esq
+    newHitbox(vec2(-0.3505, 0.7383), vec2(-0.2005, 0.8083), obstacleEnergy + 0.1, 0); // /
+    newHitbox(vec2(-0.2205, 0.7883), vec2(-0.0505, 0.7583), obstacleEnergy + 0.1, 0); // \ Dir
+    newHitbox(vec2(-0.0705, 0.7383), vec2(-0.2005, 0.7083), obstacleEnergy + 0.1, 0); // /
+    newHitbox(vec2(-0.2205, 0.6883), vec2(-0.3505, 0.7583), obstacleEnergy + 0.1, 0); // \ Esq
 
-    newHitbox(vec2(-0.3505 + 0.5847, 0.7383 + 0.0822), vec2(-0.2005 + 0.5847, 0.8083 + 0.0822), obstacleEnergy, 0); // /
-    newHitbox(vec2(-0.2205 + 0.5847, 0.7883 + 0.0822), vec2(-0.0505 + 0.5847, 0.7583 + 0.0822), obstacleEnergy, 0); // \ Dir
-    newHitbox(vec2(-0.0705 + 0.5847, 0.7383 + 0.0822), vec2(-0.2005 + 0.5847, 0.7083 + 0.0822), obstacleEnergy, 0); // /
-    newHitbox(vec2(-0.2205 + 0.5847, 0.6883 + 0.0822), vec2(-0.3505 + 0.5847, 0.7583 + 0.0822), obstacleEnergy, 0); // \ Esq
+    newHitbox(vec2(-0.3505 + 0.5847, 0.7383 + 0.0822), vec2(-0.2005 + 0.5847, 0.8083 + 0.0822), obstacleEnergy + 0.2, 0); // /
+    newHitbox(vec2(-0.2205 + 0.5847, 0.7883 + 0.0822), vec2(-0.0505 + 0.5847, 0.7583 + 0.0822), obstacleEnergy + 0.2, 0); // \ Dir
+    newHitbox(vec2(-0.0705 + 0.5847, 0.7383 + 0.0822), vec2(-0.2005 + 0.5847, 0.7083 + 0.0822), obstacleEnergy + 0.2, 0); // /
+    newHitbox(vec2(-0.2205 + 0.5847, 0.6883 + 0.0822), vec2(-0.3505 + 0.5847, 0.7583 + 0.0822), obstacleEnergy + 0.2, 0); // \ Esq
 
-    newHitbox(vec2(-0.3505 + 0.4093, 0.7383 - 0.1645), vec2(-0.2005 + 0.4093, 0.8083 - 0.1645), obstacleEnergy, 0); // /
-    newHitbox(vec2(-0.2205 + 0.4093, 0.7883 - 0.1645), vec2(-0.0505 + 0.4093, 0.7583 - 0.1645), obstacleEnergy, 0); // \ Dir
-    newHitbox(vec2(-0.0705 + 0.4093, 0.7383 - 0.1645), vec2(-0.2005 + 0.4093, 0.7083 - 0.1645), obstacleEnergy, 0); // /
-    newHitbox(vec2(-0.2205 + 0.4093, 0.6883 - 0.1645), vec2(-0.3505 + 0.4093, 0.7583 - 0.1645), obstacleEnergy, 0); // \ Esq
+    newHitbox(vec2(-0.3505 + 0.4093, 0.7383 - 0.1645), vec2(-0.2005 + 0.4093, 0.8083 - 0.1645), obstacleEnergy + 0.3, 0); // /
+    newHitbox(vec2(-0.2205 + 0.4093, 0.7883 - 0.1645), vec2(-0.0505 + 0.4093, 0.7583 - 0.1645), obstacleEnergy + 0.3, 0); // \ Dir
+    newHitbox(vec2(-0.0705 + 0.4093, 0.7383 - 0.1645), vec2(-0.2005 + 0.4093, 0.7083 - 0.1645), obstacleEnergy + 0.3, 0); // /
+    newHitbox(vec2(-0.2205 + 0.4093, 0.6883 - 0.1645), vec2(-0.3505 + 0.4093, 0.7583 - 0.1645), obstacleEnergy + 0.3, 0); // \ Esq
     
     // Flippers
     newHitbox(vec2(-0.5454, 0.1070), vec2(-0.0714, 0.0590), 0.6, 0);       // Esq
@@ -445,7 +451,11 @@ function newHitbox(v1, v2, e, direction) {
 
 /* INICIALIZAÇÃO DE OBJETOS */
 // Lê os vértices de cada peça e os armazena no vetor
-function readObject( string ) {
+function readObject( string, colorFunction ) {
+    if (! colorFunction) {
+        colorFunction = blue;
+    }
+    
     var result;
     var numberOfVertices;
     var i = 3;
@@ -493,7 +503,7 @@ function readObject( string ) {
         //___________________________________________________________________
         // Coloca a nova cor na lsta
         
-        colors.push(vec4(0.2, 0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0));
+        colors.push( colorFunction( vertex ) );
     }
     
     
@@ -549,6 +559,24 @@ function readObject( string ) {
 }
 
 
+
+function colorBallForVertex (vertex) {
+    if (vertex[1] <= 0.1 && vertex[1] >= -0.1)
+        return yellow(vertex);
+    else
+        return red(vertex);
+}
+
+function red ( vertex ) { return vec4(0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.2, 0.0); }
+function blue ( vertex ) { return vec4(0.2, 0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0); }
+function green ( vertex ) { return vec4(0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.0); }
+
+function cyan ( vertex ) { return vec4(0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0); }
+function yellow ( vertex ) { return vec4(0.6 + (vertex[1] - 0.5) * 0.25, 0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.0); }
+function magenta ( vertex ) { return vec4(0.6 + (vertex[1] - 0.5) * 0.25, 0.2, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0); }
+
+function white ( vertex ) { return vec4(0.6 + (vertex[1] - 0.5) * 0.25, 0.6 + (vertex[1] - 0.5) * 0.25, 0.6 + (vertex[1] - 0.5) * 0.25, 0.0); }
+function black ( vertex ) { return vec4(0.2 + (vertex[1] - 0.5) * 0.25, 0.2 + (vertex[1] - 0.5) * 0.25, 0.2 + (vertex[1] - 0.5) * 0.25, 0.0); }
 
 
 
@@ -953,9 +981,14 @@ function resetBalls() {
 // Events
 
 function ballWillCrash (energyCoefficient) {
-    if (energyCoefficient == obstacleEnergy) {
+    if (energyCoefficient >= obstacleEnergy && energyCoefficient <= obstacleEnergy + 0.3) {
         playSound("score2-2");
-        
+        if (energyCoefficient == obstacleEnergy + 0.1)
+            object1Hit = true;
+        if (energyCoefficient == obstacleEnergy + 0.2)
+            object2Hit = true;
+        if (energyCoefficient == obstacleEnergy + 0.3)
+            object3Hit = true;
     }
     
     playSound("click");
@@ -1637,6 +1670,46 @@ function render() {
         gl.uniform4f(dLightLoc, DRlight, DGlight, DBlight, 1.0);
         gl.uniform4f(sLightLoc, SRlight, SGlight, SBlight, 1.0);
         gl.uniform3f(constsLoc, KA, KD, KS);
+        
+        // Desenha o objeto
+        gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
+    }
+    
+    // Para cada objeto
+    for (i = 0; i < obstacles.length; i++) {
+        var lightUp = false;
+        if (i==0 && object1Hit) {
+            lightUp = true;
+            object1Hit = false;
+        }
+        else if (i==1 && object2Hit) {
+            lightUp = true;
+            object2Hit = false;
+        }
+        else if (i==2 && object3Hit) {
+            lightUp = true;
+            object3Hit = false;
+        }
+        
+        var obj = obstacles[i];
+        
+        var myKA = KA, myKD = KD, myKS = KS;
+        if (lightUp == true) {
+            myKA = 2.0;
+            myKD = 2.0;
+            myKS = 2.0;
+        }
+        
+        // Atualiza as informações do objeto
+        obj.updateModelViewMatrix();
+        
+        // Manda para o shader a matriz a ser aplicada (projeção x view x model)
+        gl.uniformMatrix4fv(modelViewLoc, false, flatten(times(lookat, obj.modelViewMatrix)));
+        gl.uniformMatrix4fv(projecLoc, false, flatten(projec));
+        gl.uniform4f(aLightLoc, ARlight, AGlight, ABlight, 1.0);
+        gl.uniform4f(dLightLoc, DRlight, DGlight, DBlight, 1.0);
+        gl.uniform4f(sLightLoc, SRlight, SGlight, SBlight, 1.0);
+        gl.uniform3f(constsLoc, myKA, myKD, myKS);
         
         // Desenha o objeto
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
