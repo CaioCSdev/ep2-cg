@@ -33,6 +33,7 @@ var pointsAux = [];
 
 var objects = [];
 var balls = [];
+var flippers = [];
 var table;
 
 var ballVertexRange;
@@ -95,12 +96,19 @@ var crashTime = 0;
 
 var play = true;
 
+var flipperLeftIsMoving = false;
+var flipperRightIsMoving = false;
+var flipperLeftMovementTime = 0;
+var flipperRightMovementTime = 0;
+var flipperLeftCommonEnergy = 0.722;
+var flipperRightCommonEnergy = 0.723;
+
 // Audio
 var soundOn = true;
 
 var audioContext;
 var audioChannels = [];
-var audioNames = ["click", "ballLift2", "buzzBell"];
+var audioNames = ["click", "ballLift2", "buzzBell", "flip"];
 
 
 var ARlight = 0.7843;
@@ -139,7 +147,7 @@ window.onload = function init()
     oldWidth = screenWidth;
     oldHeight = screenHeight;
     
-    stringNames = ['ball.vobj', 'pinball7.vobj'];
+    stringNames = ['ball.vobj', 'pinball7.vobj', 'flipper2l.vobj', 'flipper2r.vobj'];
     readObj(stringNames[0]);
 }
 
@@ -179,7 +187,8 @@ function finishInit() {
     document.onkeydown = handleKeyDown;
     document.onkeyup = handleKeyUp;
     
-    
+    currentlyPressedKeys[90] = false;
+    currentlyPressedKeys[88] = false;
     
 
     
@@ -202,15 +211,30 @@ function finishInit() {
     table.deform(vec4(1.0, 0.3, 1.0, 0.0));
     objects.push(table);
 
-    
-    
-    
-    
+    var flipperLVertexRange = readObject(objStrings[2]);     // flipper esquerdo
+    var flipper = newObjectFlipper(flipperLVertexRange, true, vec4(-0.03, -0.31, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    flipper.rotate(vec4(0.0, 0.0, 1.0, 0.0), -110);
+    flipper.deform(vec4(1.0, 0.5, 1.0, 0.0));
+    objects.push(flipper);
+    flippers.push(flipper);
+
+    var flipperRVertexRange = readObject(objStrings[3]);     // flipper direito
+    var flipper2 = newObjectFlipper(flipperRVertexRange, false, vec4(0.11, -0.311, 0.24, 1.0), 0.08, vec4(1.0, 0.0, 0.0, 0.0), 90);
+    flipper2.rotate(vec4(0.0, 0.0, 1.0, 0.0), -70);
+    flipper2.deform(vec4(-1.0, 0.5, 1.0, 0.0));
+    objects.push(flipper2);
+    flippers.push(flipper2);
     
     
     //__________________________________________________________
     /* Hitboxes */
 
+    // Flippers
+    newHitbox(vec2(-0.5454, 0.1070), vec2(-0.0714, 0.0590), flipperLeftCommonEnergy, 0);       // Esq
+    newHitbox(vec2(0.0909, 0.0590), vec2(0.6038, 0.1070), flipperRightCommonEnergy, 0);       // Dir
+    
+    
+    // Limites
     newHitbox(vec2(-1.2, 0.0), vec2(1.2, 0.0), 0.2, 0);       // Chão
     newHitbox(vec2(-1.0, -0.2), vec2(-1.0, 1.2), 0.9, 1);       // Esquerda
     newHitbox(vec2(1.1493, -0.2), vec2(1.1493, 1.2), 0.4, 0);        // Direita
@@ -250,7 +274,7 @@ function finishInit() {
     // Rod
     newHitbox(vec2(1.0000, -0.2000), vec2(1.0000, 0.8100), 0.9, 0);  //  | esq
     newHitbox(vec2(1.0714, 0.7435), vec2(0.8571, 0.8487), 0.9, 0);  //  \ esq
-    newHitbox(vec2(0.8571, 0.8487), vec2(0.8571, 0.8856), 0.9, 0);  //  |
+    newHitbox(vec2(0.8571, 0.8487), vec2(0.8571, 1.0), 0.9, 0);  //  |
     newHitbox(vec2(0.8571, 0.8856), vec2(1.0714, 0.7804), 0.9, 0);  //  \ dir
     newHitbox(vec2(1.0714, 0.7804), vec2(1.0714, -0.2000), 0.4, 0);  //  | dir
 
@@ -543,6 +567,63 @@ function newObject( vertexRange, position, size, vector, angle ) {
     return obj;
 }
 
+/* Cria um novo flipper */
+function newObjectFlipper( vertexRange, isLeft, position, size, vector, angle ) {
+    
+    if (! position) position = vec4(0.0, 0.0, 0.0, 1.0);
+    if (! size    )     size = 1.0;
+    if (! vector  )   vector = vec4(0.0, 1.0, 0.0, 0.0);
+    if (! angle   )    angle = 0.0;
+    
+    
+    
+    var obj = ({
+               // Intervalo correspondente aos vértices do objeto
+               vertexStart: vertexRange[0],
+               vertexEnd: vertexRange[1],
+               
+               //==============================================
+               
+               // Orientação do flipper
+               isLeft: isLeft,
+               
+               // Posição do objeto no mundo e sua matriz de translação
+               position: position,
+               translationMatrix: translate(position),
+               
+               // Matriz de rotação
+               rotationMatrix: mvlibRotate(vector, angle),
+               
+               // Matriz de escala
+               scaleMatrix: scale(size),
+               
+               // Matriz produto das três anteriores
+               modelViewMatrix: null,
+               
+               // Método de atualização da modelViewMatrix e flag para
+               //  evitar de aualizá-la desnecessariamente
+               updateModelViewMatrix: updateModelViewMatrix,
+               hasToUpdateMatrix: true,
+               
+               //==============================================
+               moveFlipper: moveFlipper,
+               resetFlipper: resetFlipper,
+               movementTime: 0,
+               
+               //==============================================               
+               
+               // Métodos de transformação geométrica dos objetos
+               translate: translateObj,
+               rotate: rotateObj,
+               scale: scaleObj,
+               deform: deformObj,
+               
+               });
+    
+    return obj;
+}
+
+
 
 
 /* Cria uma nova bola */
@@ -611,8 +692,10 @@ function checkLoseLife() {
             if (balls.length == 1) {       // Perdeu uma vida!
                 if (lives != 0)             // Se ainda tinha vidas, só perde uma
                     loseLife();
-                else                        // Se não o jogo começa de novo
+                else {                      // Se não o jogo começa de novo
+                    loseLife();
                     resetLives();
+                }
                 
                 // Leva a bola para a posição inicial
                 var desloc = minus(startingPosition, this.position);
@@ -627,7 +710,38 @@ function checkLoseLife() {
     }
 }
 
+function startFlipperMovement(isLeft) {
+    if (isLeft) {
+        flipperLeftIsMoving = true;
+    }
+    else {
+        flipperRightIsMoving = true;
+    }
+    
+    playSound("flip");
+}
 
+
+
+function moveFlipper() {
+    if (this.isLeft)
+        angle = 20;
+    else
+        angle = -20;
+    
+    this.rotate(vec4(0.0, 0.0, 1.0, 0.0), angle);
+}
+
+function resetFlipper() {
+    if (this.isLeft) {
+        angle = -20 * 3;
+    }
+    else {
+        angle = 20 * 3;
+    }
+    
+    this.rotate(vec4(0.0, 0.0, 1.0, 0.0), angle);
+}
 
 
 
@@ -1039,42 +1153,61 @@ function applyForces () {
     
     
     
-    
-    
-    // _____________________________________________________________
-    
-    // Se nao tivermos achado nenhuma hitbox
-    if (resultHitboxIndex == -1) {
-        this.translate(speed);
-    }
-    else if (resultHitboxIndex == -2) {     // Se não tem nenhuma mas está perto demais de alguém
-        for (var i = 0; i < resultTooCloseDistances.length; i++) {
-            this.translate(mult(0.001, resultTooCloseDistances[i]));
+    var hitFlipper = false;
+    if (flipperLeftIsMoving) {
+        if (ballHitsLeftFlipper(this)) {
+            this.velocity = plus(this.velocity, mult(0.02, vec4(0.2, 1.0, 0.0, 0.0)));
+            hitFlipper = true;
         }
     }
-    // Se achamos alguma
+    if (flipperRightIsMoving) {
+        if (ballHitsRightFlipper(this)) {
+            this.velocity = plus(this.velocity, mult(0.02, vec4(-0.2, 1.0, 0.0, 0.0)));
+            hitFlipper = true;
+        }
+    }
+    
+    if (hitFlipper == true) {
+        this.translate(vec4(0.0, 0.02, 0.0, 00));
+        ballWillCrash(3.0);
+        ballDidCrash(3.0);
+    }
     else {
-        var hitbox = hitboxes[resultHitboxIndex];
-        var n = hitbox[2];
-        
-        var translationLimit = plus(resultHitboxDistance, mult(0.01, n));
-        this.translate(resultHitboxDistance);
-        
-        var p = projection(speed, resultHitboxDistance);
-        
-        this.velocity = plus(speed, mult(-2 * hitbox[3], p));
-        
-        if (normS(p) <= 0.01*0.01) {
-            this.velocity = plus(this.velocity, mult(0.001, n));
-        }
-        
-        if (normS(this.velocity) >= 0.00001) {
-            ballWillCrash(hitbox[3]);
-            ballDidCrash(hitbox[3]);
-        }
-    }
-
     
+        // _____________________________________________________________
+        
+        // Se nao tivermos achado nenhuma hitbox
+        if (resultHitboxIndex == -1) {
+            this.translate(speed);
+        }
+        else if (resultHitboxIndex == -2) {     // Se não tem nenhuma mas está perto demais de alguém
+            for (var i = 0; i < resultTooCloseDistances.length; i++) {
+                this.translate(mult(0.001, resultTooCloseDistances[i]));
+            }
+        }
+        // Se achamos alguma
+        else {
+            var hitbox = hitboxes[resultHitboxIndex];
+            var n = hitbox[2];
+            
+            var translationLimit = plus(resultHitboxDistance, mult(0.01, n));
+            this.translate(resultHitboxDistance);
+            
+            var p = projection(speed, resultHitboxDistance);
+            
+            this.velocity = plus(speed, mult(-2 * hitbox[3], p));
+            
+            if (normS(p) <= 0.01*0.01) {
+                this.velocity = plus(this.velocity, mult(0.001, n));
+            }
+            
+            if (normS(this.velocity) >= 0.00001) {
+                ballWillCrash(hitbox[3]);
+                ballDidCrash(hitbox[3]);
+            }
+        }
+        
+    }
     
     // _____________________________________________________________
     /* Rotação da bola */
@@ -1086,6 +1219,23 @@ function applyForces () {
 }
 
 
+function ballHitsLeftFlipper (ball) {
+    var p1 = vec4(-0.5454 * 0.171 + 0.036, 0.1070 * 0.608 - 0.355, ball.position[2], 0.0);
+    var p2 = vec4(-0.0714 * 0.171 + 0.036, 0.1550 * 0.608 - 0.355, ball.position[2], 0.0);
+    var p3 = vec4(-0.0714 * 0.171 + 0.036, 0.0590 * 0.608 - 0.355, ball.position[2], 0.0);
+    var tri = [p1, p2, p3];
+    
+    return isInside(tri, ball.position);
+}
+
+function ballHitsRightFlipper (ball) {
+    var p1 = vec4(0.0909 * 0.171 + 0.036, 0.0590 * 0.608 - 0.355, ball.position[2], 0.0);
+    var p2 = vec4(0.0909 * 0.171 + 0.036, 0.1550 * 0.608 - 0.355, ball.position[2], 0.0);
+    var p3 = vec4(0.6038 * 0.171 + 0.036, 0.1070 * 0.608 - 0.355, ball.position[2], 0.0);
+    var tri = [p1, p2, p3];
+    
+    return isInside(tri, ball.position);
+}
 
 
 
@@ -1337,6 +1487,15 @@ function handleKeys() {
 
 // Callbacks do teclado
 function handleKeyDown(event) {
+    if (event.keyCode == 90) {
+        if (currentlyPressedKeys[event.keyCode] == false)
+            startFlipperMovement(true);
+    }
+    else if (event.keyCode == 88) {
+        if (currentlyPressedKeys[event.keyCode] == false)
+            startFlipperMovement(false);
+    }
+    
     currentlyPressedKeys[event.keyCode] = true;
 }
 
@@ -1434,6 +1593,48 @@ function render() {
         
         // Desenha o objeto
         gl.drawArrays( gl.TRIANGLES, obj.vertexStart, obj.vertexEnd);
+    }
+    
+    if (flipperLeftMovementTime >= 1) {
+        flipperLeftIsMoving = false;
+        flipperLeftMovementTime = 0;
+        
+        for (i = 0; i < flippers.length; i++) {
+            var flipper = flippers[i];
+            if (flipper.isLeft)
+                flipper.resetFlipper();
+        }
+    }
+    if (flipperRightMovementTime >= 1) {
+        flipperRightIsMoving = false;
+        flipperRightMovementTime = 0;
+        
+        for (i = 0; i < flippers.length; i++) {
+            var flipper = flippers[i];
+            if (!flipper.isLeft)
+                flipper.resetFlipper();
+        }
+    }
+    
+    if (flipperLeftIsMoving) {
+        flipperLeftMovementTime += 0.4;
+        for (i = 0; i < flippers.length; i++) {
+            var flipper = flippers[i];
+            
+            if (flipper.isLeft) {
+                flipper.moveFlipper();
+            }
+        }
+    }
+    if (flipperRightIsMoving) {
+        flipperRightMovementTime += 0.4;
+        for (i = 0; i < flippers.length; i++) {
+            var flipper = flippers[i];
+            
+            if (!flipper.isLeft) {
+                flipper.moveFlipper();
+            }
+        }
     }
     
     requestAnimFrame(render);
